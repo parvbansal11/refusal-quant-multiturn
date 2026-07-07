@@ -13,6 +13,7 @@ Usage:
 """
 
 import argparse
+import os
 import torch
 import torch.nn.functional as F
 from transformers import AutoModelForCausalLM, AutoTokenizer
@@ -22,17 +23,36 @@ MODEL_ID = "meta-llama/Llama-3.2-3B-Instruct"
 
 
 def get_device():
+    if torch.cuda.is_available():
+        return torch.device("cuda")
     if torch.backends.mps.is_available():
         return torch.device("mps")
-    print("MPS not available, falling back to CPU (slower but fine for this).")
+    print("No GPU found, falling back to CPU (slower but fine for extraction).")
     return torch.device("cpu")
 
 
 def load_model(device):
-    print(f"Loading {MODEL_ID} in float16 on {device} ...")
+    """Load Llama-3.2-3B. Precision is chosen by the QUANT env var:
+       QUANT=fp16 (default) -> full precision
+       QUANT=nf4            -> bitsandbytes 4-bit (CUDA only)
+    Same code path for Mac (fp16) and cloud GPU (fp16 or nf4)."""
+    quant = os.environ.get("QUANT", "fp16").lower()
+    print(f"Loading {MODEL_ID} [{quant}] on {device} ...")
     tok = AutoTokenizer.from_pretrained(MODEL_ID)
-    model = AutoModelForCausalLM.from_pretrained(MODEL_ID, torch_dtype=torch.float16)
-    model.to(device).eval()
+    if quant == "nf4":
+        from transformers import BitsAndBytesConfig
+        bnb = BitsAndBytesConfig(
+            load_in_4bit=True,
+            bnb_4bit_quant_type="nf4",
+            bnb_4bit_compute_dtype=torch.float16,
+            bnb_4bit_use_double_quant=True,
+        )
+        model = AutoModelForCausalLM.from_pretrained(
+            MODEL_ID, quantization_config=bnb, device_map={"": 0})
+    else:
+        model = AutoModelForCausalLM.from_pretrained(MODEL_ID, torch_dtype=torch.float16)
+        model.to(device)
+    model.eval()
     return tok, model
 
 
