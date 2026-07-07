@@ -6,9 +6,6 @@ internal refusal representation across a multi-turn conversation.
 **Model:** Llama-3.2-3B-Instruct (FP16 and INT4-AWQ)
 **Author:** Parv Bansal, AIMS-DTU Research Internship 2026
 
-> Private research repository. Contains standard safety benchmark prompts used
-> for measuring refusal behaviour. Not for redistribution.
-
 ## Research question
 
 Recent work (Kadadekar, 2026, arXiv 2606.10154) found that INT4 quantization
