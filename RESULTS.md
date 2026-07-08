@@ -43,3 +43,44 @@ Run: `--quick`, 20 scenarios. Preliminary / directional only.
   legible.
 - Cloud (RunPod RTX 4090). AWQ/nf4 kernels do not run on Apple Metal, so INT4
   runs require CUDA; FP16 dev + extraction + ablation run locally on Mac.
+
+---
+
+## Day 4: Full run (100 scenarios) + significance tests
+
+Same measurement, all 100 CoSafe scenarios, both precisions. Then paired
+significance tests (McNemar for behaviour, paired t-test for projection).
+
+| Metric (final turn)        | FP16   | INT4 (nf4) |
+|----------------------------|--------|------------|
+| Cold projection            | +1.460 | +1.331     |
+| In-context projection      | -0.863 | -0.837     |
+| Projection shift (ic-cold) | -2.322 | -2.168     |
+| In-context refusal         | 23.0%  | 23.0%      |
+| Jailbreak rate (ASR)       | 77.0%  | 77.0%      |
+
+### Significance (n = 100, paired)
+- Behaviour (in-context refusal): 23% vs 23%. McNemar chi2 = 0.250, p = 0.617.
+  Discordant pairs 2 vs 2 (symmetric noise). NULL.
+- Projection (in-context): mean paired diff (INT4 - FP16) = +0.026,
+  paired t = 0.567, p = 0.571, effect size dz = 0.057. NOT significant.
+
+### Conclusion
+**Clean, well-powered null.** nf4 4-bit quantization does not measurably degrade
+Llama-3.2-3B multi-turn jailbreak robustness on CoSafe, at either the
+behavioural or the representational level.
+
+Note: the Day-3 quick-run gap (85% vs 90% ASR) was small-sample noise; it
+vanished at n = 100. The small projection gap that looked "consistent" across
+runs also failed its paired test. Both were noise. This is why the full run +
+significance test mattered.
+
+### Where this leaves the project
+- The specific hypothesis ("nf4 worsens multi-turn safety") did not hold for
+  this model. A null is a legitimate result but a modest paper on its own.
+- Strongest next test: **AWQ** (Kadadekar's degradation was AWQ/GPTQ-specific,
+  not nf4). If AWQ also nulls -> robust cross-method null. If AWQ shows an
+  effect -> the finding is quantization-method-dependent.
+- Alternative framings: (a) document the preserved-multi-turn-robustness null
+  as a tension with Kadadekar's single-turn degradation; (b) revisit model
+  size / attack strength (scope risk for timeline).
