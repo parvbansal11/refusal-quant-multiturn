@@ -19,7 +19,19 @@ import torch.nn.functional as F
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from datasets import load_dataset
 
-MODEL_ID = "meta-llama/Llama-3.2-3B-Instruct"
+# Base model chosen by the MODEL env var (default 3B for continuity).
+#   MODEL=3b -> Llama-3.2-3B-Instruct
+#   MODEL=8b -> Meta-Llama-3.1-8B-Instruct (has ready AWQ + GPTQ checkpoints)
+_MODELS = {
+    "3b": "meta-llama/Llama-3.2-3B-Instruct",
+    "8b": "meta-llama/Meta-Llama-3.1-8B-Instruct",
+}
+BASE_KEY = os.environ.get("MODEL", "3b").lower()
+MODEL_ID = _MODELS.get(BASE_KEY, BASE_KEY)  # allow a full HF id too
+
+# Ready-made 4-bit checkpoints (used for awq/gptq). Only 8B has these.
+_AWQ = {"8b": "hugging-quants/Meta-Llama-3.1-8B-Instruct-AWQ-INT4"}
+_GPTQ = {"8b": "hugging-quants/Meta-Llama-3.1-8B-Instruct-GPTQ-INT4"}
 
 
 def get_device():
@@ -32,14 +44,14 @@ def get_device():
 
 
 def load_model(device):
-    """Load Llama-3.2-3B. Precision is chosen by the QUANT env var:
-       QUANT=fp16 (default) -> full precision
-       QUANT=nf4            -> bitsandbytes 4-bit (CUDA only)
-    Same code path for Mac (fp16) and cloud GPU (fp16 or nf4)."""
+    """Load the model at a precision chosen by the QUANT env var:
+       fp16 (default) | nf4 (bitsandbytes) | awq | gptq   (all but fp16 need CUDA)
+    Tokenizer is always taken from the base model so the refusal direction is
+    computed in one consistent tokenization across precisions."""
     quant = os.environ.get("QUANT", "fp16").lower()
-    print(f"Loading {MODEL_ID} [{quant}] on {device} ...")
     tok = AutoTokenizer.from_pretrained(MODEL_ID)
     if quant == "nf4":
+        print(f"Loading {MODEL_ID} [nf4] ...")
         from transformers import BitsAndBytesConfig
         bnb = BitsAndBytesConfig(
             load_in_4bit=True,
@@ -49,7 +61,20 @@ def load_model(device):
         )
         model = AutoModelForCausalLM.from_pretrained(
             MODEL_ID, quantization_config=bnb, device_map={"": 0})
+    elif quant in ("awq", "gptq"):
+        table = _AWQ if quant == "awq" else _GPTQ
+        ckpt = table.get(BASE_KEY)
+        if ckpt is None:
+            raise ValueError(f"No ready {quant} checkpoint for MODEL={BASE_KEY}. "
+                             f"Use MODEL=8b, or self-quantize.")
+        print(f"Loading {ckpt} [{quant}] ...")
+        # Plain load: transformers auto-detects awq/gptq from the checkpoint.
+        # Do NOT fuse layers (fusing would hide the per-layer residual stream
+        # from forward hooks). Default load does not fuse.
+        model = AutoModelForCausalLM.from_pretrained(
+            ckpt, torch_dtype=torch.float16, device_map={"": 0})
     else:
+        print(f"Loading {MODEL_ID} [fp16] on {device} ...")
         model = AutoModelForCausalLM.from_pretrained(MODEL_ID, torch_dtype=torch.float16)
         model.to(device)
     model.eval()
