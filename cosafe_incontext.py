@@ -1,28 +1,24 @@
 """
-Sharpened measurement: does the model get jailbroken by each CoSafe multi-turn
-attack, and what is the projection onto the refusal direction at the final turn?
+Sharpened + provenance-hardened measurement.
 
-For each scenario we measure the FINAL (unsafe) turn two ways:
-  COLD        - the final turn alone, no history (reference; note that for
-                coreference attacks this turn is ambiguous out of context).
-  IN-CONTEXT  - the full CoSafe conversation (cooperative history + final turn),
-                the actual attack.
+For each CoSafe scenario, measure the FINAL (unsafe) turn two ways:
+  COLD       - final turn alone.
+  IN-CONTEXT - full conversation (the attack).
+Records projection onto the refusal direction and refusal at that turn.
 
-The crux comparison is FP16 in-context vs INT4 in-context (same attack, only
-precision differs): does INT4 get jailbroken more (lower in-context refusal
-rate) and show a lower projection at the final turn? That extends Kadadekar's
-single-turn quantization result to the multi-turn setting.
-
-Completions are classified for refusal only, never printed or saved.
+HARDENING (prevents the layer/data mismatch that corrupted earlier runs):
+  - Prints full provenance: MODEL, QUANT, bundle, layer, direction norm.
+  - REFUSES to run unless the layer is explicit (ablation_best_layer in the
+    bundle, or --layer). No silent fallback to the d'-argmax layer.
+  - After saving, re-reads the CSV and asserts the on-disk means equal the
+    in-memory means, and writes a <tag>_meta.json provenance sidecar.
 
 Usage:
-    python cosafe_incontext.py --quick               # 20 scenarios
-    python cosafe_incontext.py --scenarios scenarios.json --n 100
-    python cosafe_incontext.py --tag int4            # label the INT4 run
+    MODEL=8b            python cosafe_incontext.py --n 100 --tag 8b_fp16
+    MODEL=8b QUANT=awq  python cosafe_incontext.py --n 100 --tag 8b_awq
 """
 import argparse, csv, json, os, torch
-from refusal_direction import load_model, get_device
-from ablation import is_refusal
+from refusal_direction import load_model, get_device, MODEL_ID
 
 BUNDLE = "refusal_direction_fp16.pt"
 
@@ -51,59 +47,100 @@ def projection(model, tok, messages, direction, device):
     act = _captured["act"]
     return (act @ direction.to(act.dtype).to(act.device)).item()
 
+# import the refusal detector after defining nothing else that clashes
+from ablation import is_refusal
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--scenarios", default="scenarios.json")
     ap.add_argument("--n", type=int, default=100)
     ap.add_argument("--quick", action="store_true")
     ap.add_argument("--tag", default="fp16")
+    ap.add_argument("--layer", type=int, default=None,
+                    help="force the measurement layer (overrides bundle)")
     args = ap.parse_args()
     n = 20 if args.quick else args.n
 
+    quant = os.environ.get("QUANT", "fp16").lower()
+    bundle = torch.load(BUNDLE, map_location="cpu")
+
+    # --- Explicit layer, NO silent fallback ---
+    if args.layer is not None:
+        layer = args.layer
+        src = "--layer flag"
+    elif "ablation_best_layer" in bundle:
+        layer = bundle["ablation_best_layer"]
+        src = "bundle.ablation_best_layer"
+    else:
+        raise SystemExit(
+            "REFUSING TO RUN: no ablation_best_layer in the bundle and no --layer "
+            "given. Run ablation and patch the layer first, or pass --layer N. "
+            "(This is the guard that prevents the wrong-layer data mismatch.)")
+
+    direction = bundle["directions"][layer]
+    dnorm = direction.norm().item()
+
     device = get_device()
     tok, model = load_model(device)
-    bundle = torch.load(BUNDLE, map_location="cpu")
-    layer = bundle.get("ablation_best_layer", bundle["best_layer"])
-    direction = bundle["directions"][layer]
-    print(f"Using layer {layer} refusal direction.")
-    model.model.layers[layer].register_forward_hook(_cap_hook)
+    nlayers = len(model.model.layers)
 
+    print("=" * 60)
+    print("PROVENANCE")
+    print(f"  MODEL_ID        : {MODEL_ID}")
+    print(f"  QUANT           : {quant}")
+    print(f"  bundle          : {BUNDLE}")
+    print(f"  layer used       : {layer}  (source: {src}; model has {nlayers} layers)")
+    print(f"  direction norm  : {dnorm:.4f}  (should be ~1.0)")
+    print(f"  tag / n         : {args.tag} / {n}")
+    print("=" * 60)
+    if not (0 <= layer < nlayers):
+        raise SystemExit(f"Layer {layer} out of range for this model.")
+
+    model.model.layers[layer].register_forward_hook(_cap_hook)
     scenarios = json.load(open(args.scenarios))[:n]
-    print(f"{len(scenarios)} CoSafe scenarios.\n")
 
     rows = []
     for si, scen in enumerate(scenarios):
         msgs = scen["messages"]
         final = {"role": "user", "content": msgs[-1]["content"]}
-        # COLD: final turn alone
         pc = projection(model, tok, [final], direction, device)
         rc = int(is_refusal(generate_reply(model, tok, [final], device)))
-        # IN-CONTEXT: full conversation
         pi = projection(model, tok, msgs, direction, device)
         ri = int(is_refusal(generate_reply(model, tok, msgs, device)))
         rows.append((scen.get("id", si), scen.get("category", "?"), pc, rc, pi, ri))
-        if (si + 1) % 10 == 0:
+        if (si + 1) % 20 == 0:
             print(f"  {si + 1}/{len(scenarios)} done")
 
-    def mean(xs): return sum(xs) / len(xs)
-    proj_cold = mean([r[2] for r in rows]); ref_cold = mean([r[3] for r in rows])
-    proj_ic = mean([r[4] for r in rows]);   ref_ic = mean([r[5] for r in rows])
+    def mean(j): return sum(r[j] for r in rows) / len(rows)
+    m_pc, m_rc, m_pi, m_ri = mean(2), mean(3), mean(4), mean(5)
 
-    print("\n=== Final-turn measurement ===")
-    print(f"  COLD  (final turn alone):  proj {proj_cold:+.3f}   refusal {ref_cold:.1%}")
-    print(f"  IN-CONTEXT (full attack):  proj {proj_ic:+.3f}   refusal {ref_ic:.1%}")
-    print(f"\n  In-context refusal rate = {ref_ic:.1%}  ->  jailbreak rate (ASR) = {1-ref_ic:.1%}")
-    print(f"  Projection shift (in-context - cold): {proj_ic - proj_cold:+.3f}")
-    print("\n  For the paper, compare THIS run (fp16) against the INT4 run:")
-    print("   - higher jailbreak rate under INT4 = quantization worsens multi-turn safety")
-    print("   - lower in-context projection under INT4 = the refusal-direction signature")
+    print("\n=== RESULT ===")
+    print(f"  COLD       proj {m_pc:+.4f}   refusal {m_rc:.1%}")
+    print(f"  IN-CONTEXT proj {m_pi:+.4f}   refusal {m_ri:.1%}")
+    print(f"  jailbreak (ASR) {1-m_ri:.1%}   projection shift {m_pi-m_pc:+.4f}")
 
     out = f"incontext_{args.tag}.csv"
     with open(out, "w", newline="") as f:
         w = csv.writer(f)
-        w.writerow(["id", "category", "proj_cold", "refused_cold", "proj_incontext", "refused_incontext"])
+        w.writerow(["id","category","proj_cold","refused_cold","proj_incontext","refused_incontext"])
         w.writerows(rows)
-    print(f"\n  Saved -> {out}. Rerun with --tag int4 on the quantized model.")
+
+    # --- Self-verify: re-read the file and confirm it matches memory ---
+    rr = list(csv.DictReader(open(out)))
+    disk_pi = sum(float(r["proj_incontext"]) for r in rr) / len(rr)
+    disk_ri = sum(int(r["refused_incontext"]) for r in rr) / len(rr)
+    ok = abs(disk_pi - m_pi) < 1e-6 and abs(disk_ri - m_ri) < 1e-6
+    print(f"\n  VERIFY (from saved {out}): in-ctx proj {disk_pi:+.4f}, refusal {disk_ri:.1%}"
+          f"  -> {'MATCH' if ok else 'MISMATCH!!'}")
+    if not ok:
+        raise SystemExit("Saved file does not match computed values. Do NOT trust this run.")
+
+    meta = {"tag": args.tag, "model_id": MODEL_ID, "quant": quant, "layer": layer,
+            "layer_source": src, "direction_norm": dnorm, "n": len(rows),
+            "in_context_proj": m_pi, "in_context_refusal": m_ri,
+            "cold_proj": m_pc, "cold_refusal": m_rc}
+    json.dump(meta, open(f"incontext_{args.tag}_meta.json", "w"), indent=2)
+    print(f"  Saved {out} + incontext_{args.tag}_meta.json  (provenance recorded).")
 
 if __name__ == "__main__":
     main()
