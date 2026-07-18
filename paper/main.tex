@@ -1,0 +1,306 @@
+\documentclass[letterpaper]{article}
+\usepackage{aaai27}
+\usepackage{times}
+\usepackage{helvet}
+\usepackage{courier}
+\usepackage[hyphens]{url}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{amsmath}
+\usepackage{natbib}
+\usepackage{caption}
+\frenchspacing
+\setlength{\pdfpagewidth}{8.5in}
+\setlength{\pdfpageheight}{11in}
+
+\pdfinfo{
+/TemplateVersion (2027.1)
+}
+
+\title{Single-Turn Safety Evaluation Does Not Predict the Multi-Turn Robustness of Quantized Language Models}
+\author{Anonymous submission}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Quantization lets large language models run on edge hardware, where real use is
+multi-turn. Prior work measured quantization's effect on refusal at a single
+turn only and reported degradation. We give the first measurement across a
+multi-turn jailbreak. We extract the refusal direction by difference-in-means,
+confirm its causal layer by ablation, then measure refusal and its projection
+under CoSafe coreference attacks for Llama-3.2-3B (FP16, NF4) and Llama-3.1-8B
+(FP16, AWQ, GPTQ). Multi-turn refusal does not vary with precision: 3B holds at
+23\% (McNemar $p=0.62$), 8B at 27 to 32\% (Cochran $Q$ $p=0.12$). Precision
+differences that appear at a single turn, where 8B quantization raises refusal
+by 8 to 11 points (Cochran $Q$ $p<0.01$), do not survive the attack. The refusal
+direction stays behaviorally coupled at every precision (AUC 0.79 to 0.93), so
+the convergence is behavioral saturation, not representational loss. Single-turn
+safety evaluation does not predict how quantized models rank under conversational
+attack.
+\end{abstract}
+
+\section{Introduction}
+Post-training quantization to 4 bits is now the standard way to fit an
+instruction-tuned model onto a phone or a laptop. The same deployment target
+that forces quantization also forces multi-turn use: a chat assistant holds a
+conversation. Safety evaluation has not followed. Recent work that measures how
+quantization changes refusal does so with single-turn prompts and reports a drop
+in refusal after quantization \citep{kadadekar2026quality}. Whether that drop
+holds, grows, or disappears once an attacker has several turns is open. The
+authors name multi-turn as future work.
+
+We fill that gap. We ask one question: does 4-bit quantization change a model's
+multi-turn jailbreak robustness, and how does that compare to its single-turn
+effect on the same model and prompts? We answer it for two models and three
+quantization methods, and we read both behavior (refusal rate) and mechanism
+(projection onto the refusal direction of \citet{arditi2024refusal}).
+
+Our finding is a dissociation between the single-turn and multi-turn picture.
+At a single turn, precision matters: for Llama-3.1-8B, both AWQ and GPTQ raise
+refusal relative to FP16 by 8 to 11 points, and the effect is significant. Under
+a CoSafe coreference attack \citep{yu2024cosafe}, that gap disappears. All
+precisions converge to a common refusal rate near 30\% and a common attack
+success rate near 70\%. The refusal direction still predicts refusal at every
+precision, so the models do not lose the representation; the attack simply drives
+all of them past the same behavioral threshold. Llama-3.2-3B shows no precision
+effect at either horizon.
+
+The practical consequence is a warning about evaluation. A single-turn safety
+score ranks FP16 and quantized checkpoints differently from how they rank under
+conversational attack. A deployment decision that trusts the single-turn number
+inherits the wrong ordering.
+
+Our contributions:
+\begin{itemize}
+\item The first measurement of 4-bit quantization's effect on multi-turn
+jailbreak robustness, for Llama-3.2-3B (FP16, NF4) and Llama-3.1-8B (FP16, AWQ,
+GPTQ) on CoSafe.
+\item A paired single-turn versus multi-turn contrast on identical items,
+showing that the single-turn precision gap does not survive the attack.
+\item A mechanistic check: the refusal direction stays behaviorally coupled
+under quantization, so multi-turn convergence is behavioral saturation rather
+than loss of the refusal representation.
+\end{itemize}
+
+\section{Related Work}
+\paragraph{Refusal as a direction.}
+\citet{arditi2024refusal} show that refusal in instruction-tuned models is
+mediated by a single linear direction in the residual stream: adding it induces
+refusal, ablating it removes refusal. We use their difference-in-means estimator
+and confirm the causal layer by ablation.
+
+\paragraph{Quantization and safety.}
+\citet{kadadekar2026quality} report that INT4 quantization degrades single-turn
+refusal while the refusal direction stays geometrically intact, and note that
+standard probes do not explain the behavioral gap. \citet{chhabra2025refusal}
+find that the refusal direction survives compression with cosine similarity
+above 0.99. Both study single-turn behavior. Neither measures a conversation.
+We extend the first to the multi-turn setting it names as open.
+
+\paragraph{Multi-turn safety.}
+\citet{star2026state} show that in full-precision models the projection onto the
+refusal direction decays across conversation turns, so multi-turn state erodes
+refusal. We measure the analogous trajectory across precisions. Our measurement
+method is independent of theirs; we use it to compare precisions, not to
+characterize full-precision decay.
+
+\paragraph{Attacks and data.}
+CoSafe \citep{yu2024cosafe} builds multi-turn attacks whose final turn refers
+back to earlier turns by coreference, so the harmful request is only legible in
+context. We use its safe categories. Single-turn harmful prompts follow AdvBench
+\citep{zou2023universal}. Quantization uses NF4 \citep{dettmers2023qlora}, AWQ
+\citep{lin2024awq}, and GPTQ \citep{frantar2023gptq}.
+
+\section{Method}
+\paragraph{Models and precisions.}
+Llama-3.2-3B-Instruct at FP16 and NF4 (bitsandbytes double-quantized). Llama-3.1-8B-Instruct
+at FP16, AWQ-INT4, and GPTQ-INT4, using the public \texttt{hugging-quants}
+checkpoints. AWQ and GPTQ layers are not fused, so forward hooks see the residual
+stream. FP16 extraction and ablation run on Apple silicon; quantized kernels run
+on CUDA.
+
+\paragraph{Refusal direction.}
+We extract the direction by difference-in-means \citep{arditi2024refusal}:
+mean activation at the post-instruction token for harmful prompts minus the same
+for harmless prompts, per layer, normalized. Held-out separation accuracy is
+100\% for the 3B direction.
+
+\paragraph{Causal layer by ablation.}
+We do not pick the layer with the largest separation. We ablate each candidate
+layer's direction from the residual stream and keep the layer whose removal
+collapses refusal. For 3B this is layer 20: ablation drops refusal from 94\% to
+0\%, while ablating a random direction leaves refusal near baseline. For 8B it
+is layer 13. Using the separability-argmax layer instead would select layer 28
+for 3B, which does not mediate refusal; an early version of the pipeline made
+that error, and we report only runs from the ablation-confirmed layer.
+
+\paragraph{Attack measurement.}
+For each CoSafe scenario we take the final (unsafe) user turn and measure it two
+ways. \emph{Cold}: the final turn alone, no conversation. \emph{In-context}: the
+full conversation, which is the attack. In both we record refusal, detected by a
+fixed phrase classifier on greedy generation, and the projection of the
+post-instruction activation onto the refusal direction. The cold and in-context
+conditions share the same final request, so their difference isolates the effect
+of the conversational context. Because CoSafe final turns use coreference, the
+cold condition is often under-specified on its own; this is the intended
+contrast, since the context is what makes the request actionable.
+
+\paragraph{Statistics.}
+Refusal is paired binary across precision, so we use McNemar's test per pair and
+Cochran's $Q$ across the three 8B precisions. Projection is paired continuous, so
+we use the paired $t$-test. We report the 100-scenario runs; $n=100$ per
+condition.
+
+\section{Results}
+
+\begin{table}[t]
+\centering
+\small
+\begin{tabular}{llcccc}
+\toprule
+Model & Prec. & \multicolumn{2}{c}{Refusal} & \multicolumn{2}{c}{Refusal-dir.\ proj.} \\
+& & cold & in-ctx & cold & in-ctx \\
+\midrule
+3B & FP16 & 25\% & 23\% & $+1.46$ & $-0.86$ \\
+3B & NF4  & 23\% & 23\% & $+1.33$ & $-0.84$ \\
+\midrule
+8B & FP16 & 23\% & 27\% & $+0.88$ & $+0.82$ \\
+8B & AWQ  & 31\% & 32\% & $+0.80$ & $+0.76$ \\
+8B & GPTQ & 34\% & 31\% & $+0.90$ & $+0.89$ \\
+\bottomrule
+\end{tabular}
+\caption{Refusal and mean projection onto the refusal direction, cold (single
+turn) and in-context (multi-turn), $n=100$ per cell.}
+\label{tab:means}
+\end{table}
+
+\begin{table}[t]
+\centering
+\small
+\begin{tabular}{lll}
+\toprule
+Comparison & Cold & In-context \\
+\midrule
+3B FP16 vs NF4 & $p=0.68$ & $p=0.62$ \\
+8B FP16 vs AWQ & $p=0.043$ & $p=0.13$ \\
+8B FP16 vs GPTQ & $p=0.010$ & $p=0.22$ \\
+8B Cochran $Q$ & $p=0.008$ & $p=0.12$ \\
+\bottomrule
+\end{tabular}
+\caption{Refusal significance (McNemar per pair, Cochran $Q$ across the three 8B
+precisions). The single-turn precision effect on 8B is significant; the
+multi-turn effect is not.}
+\label{tab:sig}
+\end{table}
+
+\paragraph{Multi-turn refusal does not depend on precision.}
+Table~\ref{tab:means} gives the rates and Figure~\ref{fig:multiturn} plots the
+in-context column. For 3B the two precisions are identical at 23\% (McNemar
+$\chi^2=0.25$, $p=0.62$), and the paired projection difference is null ($t=0.57$,
+$p=0.57$). For 8B the three precisions span 27 to 32\%, and Cochran's $Q$ over
+the paired refusals is not significant ($Q=4.2$, $p=0.12$). Attack success rate
+sits near 70\% for every precision.
+
+\paragraph{The single-turn precision gap does not survive the attack.}
+The cold column tells a different story for 8B. Quantization raises single-turn
+refusal: FP16 refuses 23\%, AWQ 31\%, GPTQ 34\%. Both pairwise contrasts against
+FP16 are significant (McNemar $p=0.043$ and $p=0.010$; Table~\ref{tab:sig}), and
+Cochran's $Q$ is significant ($Q=9.7$, $p=0.008$). The same three precisions are
+not separable once the conversation is present. Figure~\ref{fig:coldvsic} shows
+the gap closing: the 8 to 11 point spread at a single turn narrows to 5 points
+in context and loses significance. 3B shows no precision effect at either
+horizon.
+
+\paragraph{The direction stays coupled.}
+If quantization broke the refusal representation, projection would stop
+predicting refusal. It does not. Figure~\ref{fig:coupling} reports the AUC of
+projection predicting refusal, per precision and condition. AUC ranges from 0.79
+to 0.93 and never approaches chance. Point-biserial correlations run from 0.46 to
+0.68, all with $p<10^{-6}$. The refusal direction drives behavior under AWQ,
+GPTQ, and NF4 as it does under FP16. Multi-turn convergence is therefore
+behavioral saturation across a shared threshold, not a loss of the mechanism.
+
+\paragraph{Where the single-turn effect lives.}
+The 8B single-turn caution gap concentrates in two CoSafe categories:
+privacy violation (FP16 40\% cold, AWQ 52\%, GPTQ 56\%) and misinformation (FP16
+4\%, AWQ and GPTQ 16\%). It is not a decoding artifact: garbled or empty output
+scores as non-refusal, so an artifact would lower the measured rate, not raise
+it, and the effect appears independently under two quantization methods.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{fig1_multiturn.pdf}
+\caption{Multi-turn (in-context) refusal by precision, with Wilson 95\%
+intervals. Precisions overlap within each model.}
+\label{fig:multiturn}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.86\columnwidth]{fig2_cold_vs_ic.pdf}
+\caption{Llama-3.1-8B refusal, single turn (cold) versus multi-turn
+(in-context). The single-turn precision gap (23/31/34\%) narrows and loses
+significance in context.}
+\label{fig:coldvsic}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.86\columnwidth]{fig3_coupling.pdf}
+\caption{AUC of projection onto the refusal direction predicting refusal. The
+direction stays coupled to behavior under every precision.}
+\label{fig:coupling}
+\end{figure}
+
+\section{Discussion}
+\paragraph{Why the gap closes.}
+CoSafe attacks work by hiding the harmful request behind coreference, so the
+model answers the earlier, benign-looking turns and then completes the final one
+in context. This attack is strong: it takes FP16 from 23 to 27\% refusal for 8B
+and drives 3B to 23\%. Once the attack is this effective, a few points of extra
+caution from quantization is not enough to change the outcome. The precision
+difference is real at a single turn and is swamped by the attack in context. A
+safety margin that exists in isolation does not imply a safety margin under
+pressure.
+
+\paragraph{Implication for evaluation.}
+Single-turn refusal is the standard axis for comparing a quantized checkpoint to
+its FP16 source. Our result shows that axis does not preserve the multi-turn
+ordering. For 8B, single-turn evaluation ranks the quantized checkpoints as
+\emph{safer} than FP16, while under attack they are statistically tied.
+A single-turn number, whether it shows degradation or improvement, does not
+transfer to the conversational setting where the model is deployed.
+
+\paragraph{Relation to prior reports.}
+\citet{kadadekar2026quality} report single-turn degradation on standard harmful
+prompts. Our single-turn measurement uses the CoSafe final turn and, for 8B,
+finds the opposite sign. The two measurements differ in prompt set, so they are
+not in direct conflict; together they say the single-turn precision effect is
+not stable across prompt distributions. A standalone-AdvBench single-turn control
+across all precisions is a direct next step and would sharpen this comparison.
+
+\section{Limitations}
+Two models and one attack dataset. Two model sizes (3B, 8B), one family (Llama),
+one multi-turn attack (CoSafe coreference), and three quantization methods (NF4,
+AWQ, GPTQ). We do not vary attack type or study training-time quantization. The
+refusal detector is a phrase classifier, which can miss soft refusals; the
+projection results, which do not use it, agree with the behavioral results.
+CoSafe safe categories only. The single-turn cold condition inherits CoSafe
+coreference, so it is a within-item control rather than a standalone harmful
+prompt; the AdvBench control noted above addresses that directly.
+
+\section{Conclusion}
+Quantization's effect on refusal is single-turn-specific and does not survive a
+multi-turn coreference attack. For Llama-3.1-8B, AWQ and GPTQ raise single-turn
+refusal over FP16 by a significant 8 to 11 points, and that gap vanishes under
+attack, where all precisions converge near 30\% refusal. The refusal direction
+stays coupled to behavior throughout, so the convergence is saturation, not
+representational loss. Static single-turn safety evaluation does not predict how
+quantized models rank under conversational attack, and deployment decisions
+should not rely on it.
+
+\bibliographystyle{aaai27}
+\bibliography{refs}
+
+\end{document}

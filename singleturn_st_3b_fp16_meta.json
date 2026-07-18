@@ -1,0 +1,10 @@
+{
+  "tag": "st_3b_fp16",
+  "model": "meta-llama/Llama-3.2-3B-Instruct",
+  "quant": "fp16",
+  "layer": 20,
+  "prompts": "advbench_harmful_behaviors.csv",
+  "n": 100,
+  "projection": 7.847486922740936,
+  "refusal": 0.76
+}

@@ -84,3 +84,45 @@ significance test mattered.
 - Alternative framings: (a) document the preserved-multi-turn-robustness null
   as a tension with Kadadekar's single-turn degradation; (b) revisit model
   size / attack strength (scope risk for timeline).
+
+---
+
+## Day 5: 8B three-way + single-turn contrast (all from committed CSVs)
+
+Recomputed every number from the five committed incontext_*.csv via
+`analyze_multiturn.py`. Figures via `make_figures.py`.
+
+### Multi-turn (in-context) refusal
+| model | fp16 | nf4 | awq | gptq | test |
+|---|---|---|---|---|---|
+| 3B | 23% | 23% | - | - | McNemar chi2=0.25 p=0.617; proj paired-t p=0.572 |
+| 8B | 27% | - | 32% | 31% | Cochran Q=4.2 p=0.122; pairwise p=0.13/0.22 |
+
+Null across precision, both models. Confirms the Day-4 3B null and extends it to
+the 8B three-way.
+
+### Single-turn (cold) refusal: an 8B precision effect that multi-turn erases
+| condition | fp16 | awq | gptq | test |
+|---|---|---|---|---|
+| 8B cold | 23% | 31% | 34% | McNemar p=0.043 / 0.010; Cochran Q p=0.008 |
+| 8B in-context | 27% | 32% | 31% | Cochran Q p=0.122 (n.s.) |
+| 3B cold | 25% | 23% (nf4) | - | McNemar p=0.688 (n.s.) |
+
+On the cold final turn, 8B quantization RAISES refusal (concentrated in privacy
+and misinformation). The gap is significant at a single turn and not significant
+in context. Direction stays behaviourally coupled at every precision (AUC
+0.79-0.93, `analyze_multiturn.py`), so the multi-turn convergence is behavioural
+saturation, not representational loss.
+
+### Data-integrity note
+The single-turn degradation table from the earlier handoff (3B 62%->41%, 8B
+62%->41%/48%) has no backing CSV anywhere in git history or on disk, and the 3B
+fp16 anchor does not reproduce: standalone AdvBench single-turn gives 76%
+(`singleturn_st_3b_fp16.csv`), not 62%. Treat 76% as the verified 3B fp16 number.
+Quantized single-turn on AdvBench is queued for cloud (`CLOUD_RUN.md`,
+`singleturn_hardened.py`, `analyze_singleturn.py`).
+
+### Framing for the paper
+Single-turn safety evaluation does not predict the multi-turn ordering of
+quantized models: the 8B single-turn precision gap vanishes under CoSafe attack,
+where all precisions converge near 30% refusal / 70% ASR. Draft in `paper/`.
