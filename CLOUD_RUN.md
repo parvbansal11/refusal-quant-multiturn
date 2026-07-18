@@ -57,6 +57,29 @@ MODEL=3b python ablation.py --quick     # confirms layer 20, patches the bundle
 MODEL=3b QUANT=nf4 python singleturn_hardened.py --n 100 --tag st_3b_nf4
 ```
 
+## Disk requirement (read before the 8B block)
+
+The 8B block downloads the FP16 base (16GB) for direction extraction plus the
+AWQ and GPTQ checkpoints (5.7GB each), about 27GB of models on top of the env.
+A default small container disk fills up and every download aborts with
+`No space left on device (os error 28)`. Provision at least a 60GB container
+disk, or attach a volume and point the cache at it:
+
+```bash
+export HF_HOME=/workspace/hf           # a volume with room, if you have one
+export HF_HUB_DISABLE_XET=1            # plain downloads, fewer partial-write errors
+df -h /                                # confirm >30GB free before starting
+```
+
+Reclaim space from the finished 3B run and any aborted partials first:
+
+```bash
+rm -rf ~/.cache/huggingface/hub/models--meta-llama--Llama-3.2-3B-Instruct
+rm -rf ~/.cache/huggingface/hub/models--meta-llama--Meta-Llama-3.1-8B-Instruct
+rm -rf ~/.cache/huggingface/hub/models--hugging-quants--Meta-Llama-3.1-8B-Instruct-AWQ-INT4
+rm -rf ~/.cache/huggingface/hub/models--hugging-quants--Meta-Llama-3.1-8B-Instruct-GPTQ-INT4
+```
+
 ## 8B block (FP16, AWQ, GPTQ)
 
 ```bash
