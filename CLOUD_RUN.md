@@ -23,6 +23,28 @@ The direction bundle `refusal_direction_fp16.pt` is model-specific (3B: 28
 layers, causal layer 20; 8B: 32 layers, causal layer 13) and is gitignored, so
 regenerate it once per model before that model's single-turn runs.
 
+## Pod spec (avoid the 20GB-disk dead end)
+
+A default RunPod container disk is ~20GB, which fills after the env plus the 3B
+model and leaves no room for the 16GB 8B FP16 base. Provision disk up front:
+
+- GPU: RTX 4090 / RTX A5000 / RTX PRO 4000 (>=24GB VRAM, enough for 8B FP16).
+- Volume Disk: >=80GB, mounted at `/workspace`. The scripts put the HF cache
+  there. (Or set the container disk to 80GB.)
+
+## One-shot
+
+After the pod is up:
+
+```bash
+git clone https://github.com/parvbansal11/refusal-quant-multiturn && cd refusal-quant-multiturn
+huggingface-cli login          # gated Llama access
+bash run_singleturn_cloud.sh   # installs from the lock, runs 3B + 8B, prints the table
+```
+
+Then copy the five `singleturn_st_*.csv` off the pod (commit + push, or the
+RunPod file browser). The steps below are the same pipeline done by hand.
+
 ## Setup (RunPod, RTX 4090 or PRO 4000)
 
 Reproduce the exact environment that produced the committed CSVs. A bare
