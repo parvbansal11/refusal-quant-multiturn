@@ -34,7 +34,11 @@ def main():
     ap.add_argument("--advbench", default="advbench_harmful_behaviors.csv")
     ap.add_argument("--scenarios", default="scenarios.json")
     ap.add_argument("--max_new", type=int, default=128)
+    ap.add_argument("--system", default=None,
+                    help="optional safety system prompt prepended to every conversation")
     args = ap.parse_args()
+
+    sys_msg = [{"role": "system", "content": args.system}] if args.system else []
 
     out = f"completions_{args.tag}.csv"
     n_expected = args.n
@@ -55,7 +59,8 @@ def main():
     if args.mode == "single":
         goals = [r["goal"] for r in csv.DictReader(open(args.advbench))][:args.n]
         for i, g in enumerate(goals):
-            resp = generate(model, tok, [{"role": "user", "content": g}], device, args.max_new)
+            resp = generate(model, tok, sys_msg + [{"role": "user", "content": g}],
+                            device, args.max_new)
             rows.append({"id": i, "prompt": g, "response": resp})
             if (i + 1) % 25 == 0:
                 print(f"  {i+1}/{len(goals)}", flush=True)
@@ -63,7 +68,7 @@ def main():
     else:
         scen = json.load(open(args.scenarios))[:args.n]
         for si, s in enumerate(scen):
-            msgs = s["messages"]
+            msgs = sys_msg + s["messages"]
             resp = generate(model, tok, msgs, device, args.max_new)
             rows.append({"id": s.get("id", si), "category": s.get("category", "?"),
                          "final_user": msgs[-1]["content"],
