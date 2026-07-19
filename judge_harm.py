@@ -18,10 +18,12 @@ GUARD = "meta-llama/Llama-Guard-3-8B"
 
 @torch.no_grad()
 def judge(model, tok, convo, device):
-    ids = tok.apply_chat_template(convo, return_tensors="pt").to(device)
-    out = model.generate(input_ids=ids, max_new_tokens=20, do_sample=False,
+    enc = tok.apply_chat_template(convo, return_tensors="pt", return_dict=True)
+    enc = {k: v.to(device) for k, v in enc.items()}
+    n = enc["input_ids"].shape[-1]
+    out = model.generate(**enc, max_new_tokens=20, do_sample=False,
                          pad_token_id=tok.eos_token_id)
-    verdict = tok.decode(out[0, ids.shape[-1]:], skip_special_tokens=True).strip()
+    verdict = tok.decode(out[0, n:], skip_special_tokens=True).strip()
     return verdict, int(verdict.lower().startswith("unsafe"))
 
 
