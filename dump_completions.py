@@ -9,7 +9,7 @@ Usage (same MODEL/QUANT env as the rest of the repo):
     MODEL=8b QUANT=awq python dump_completions.py --mode single --tag st_8b_awq
     MODEL=8b QUANT=awq python dump_completions.py --mode multi  --tag mt_8b_awq
 """
-import argparse, csv, json, torch
+import argparse, csv, json, os, torch
 from refusal_direction import load_model, get_device
 
 
@@ -36,6 +36,18 @@ def main():
     ap.add_argument("--max_new", type=int, default=128)
     args = ap.parse_args()
 
+    out = f"completions_{args.tag}.csv"
+    n_expected = args.n
+    if args.mode == "multi":
+        n_expected = min(args.n, len(json.load(open(args.scenarios))))
+    else:
+        n_expected = min(args.n, sum(1 for _ in csv.DictReader(open(args.advbench))))
+    if os.path.exists(out):
+        have = sum(1 for _ in csv.DictReader(open(out)))
+        if have >= n_expected:
+            print(f"skip {out} (already has {have} rows)")
+            return
+
     device = get_device()
     tok, model = load_model(device)
     rows = []
@@ -61,7 +73,6 @@ def main():
                 print(f"  {si+1}/{len(scen)}", flush=True)
         cols = ["id", "category", "final_user", "conversation", "response"]
 
-    out = f"completions_{args.tag}.csv"
     with open(out, "w", newline="") as f:
         w = csv.DictWriter(f, fieldnames=cols)
         w.writeheader()
