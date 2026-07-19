@@ -10,7 +10,7 @@ Mode is inferred from columns: 'prompt' -> single turn, 'conversation' -> multi.
 Usage:
     python judge_harm.py
 """
-import csv, glob, json, torch
+import csv, glob, json, os, torch
 from transformers import AutoTokenizer, AutoModelForCausalLM
 
 GUARD = "meta-llama/Llama-Guard-3-8B"
