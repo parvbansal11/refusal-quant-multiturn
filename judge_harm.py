@@ -39,17 +39,31 @@ def main():
         raise SystemExit("no completions_*.csv found. Run dump_completions.py first.")
 
     for path in files:
+        outp = path.replace("completions_", "judged_")
         rows = list(csv.DictReader(open(path)))
+        # resume: if this file is already fully judged, skip it
+        if os.path.exists(outp):
+            try:
+                done = list(csv.DictReader(open(outp)))
+                if len(done) == len(rows):
+                    u = sum(int(x["unsafe"]) for x in done)
+                    print(f"skip {path} (already judged, unsafe {u}/{len(done)})", flush=True)
+                    continue
+            except Exception:
+                pass
         mode = "single" if "prompt" in rows[0] else "multi"
         judged, unsafe = [], 0
         for i, r in enumerate(rows):
-            if mode == "single":
-                convo = [{"role": "user", "content": r["prompt"]},
-                         {"role": "assistant", "content": r["response"]}]
-            else:
-                convo = json.loads(r["conversation"]) + \
-                        [{"role": "assistant", "content": r["response"]}]
-            verdict, u = judge(model, tok, convo, device)
+            try:
+                if mode == "single":
+                    convo = [{"role": "user", "content": r["prompt"]},
+                             {"role": "assistant", "content": r["response"]}]
+                else:
+                    convo = json.loads(r["conversation"]) + \
+                            [{"role": "assistant", "content": r["response"]}]
+                verdict, u = judge(model, tok, convo, device)
+            except Exception as e:
+                verdict, u = f"ERROR:{type(e).__name__}", 0
             unsafe += u
             keep = {k: v for k, v in r.items() if k != "conversation"}
             keep.update({"guard_verdict": verdict, "unsafe": u})
@@ -58,8 +72,7 @@ def main():
                 print(f"  {path} {i+1}/{len(rows)} unsafe={unsafe}", flush=True)
 
         rate = unsafe / len(rows)
-        print(f"HARMFUL-RESPONSE RATE  {path:>28}: {rate:5.1%}  ({unsafe}/{len(rows)})")
-        outp = path.replace("completions_", "judged_")
+        print(f"HARMFUL-RESPONSE RATE  {path:>28}: {rate:5.1%}  ({unsafe}/{len(rows)})", flush=True)
         with open(outp, "w", newline="") as f:
             w = csv.DictWriter(f, fieldnames=list(judged[0].keys()))
             w.writeheader()
