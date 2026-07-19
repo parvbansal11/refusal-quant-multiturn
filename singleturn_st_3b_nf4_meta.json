@@ -1,0 +1,10 @@
+{
+  "tag": "st_3b_nf4",
+  "model": "meta-llama/Llama-3.2-3B-Instruct",
+  "quant": "nf4",
+  "layer": 20,
+  "prompts": "advbench_harmful_behaviors.csv",
+  "n": 100,
+  "projection": 7.719383403658867,
+  "refusal": 0.82
+}
