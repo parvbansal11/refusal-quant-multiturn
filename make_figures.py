@@ -118,10 +118,12 @@ ax.bar(x + 0.2, [auc(m, q, "ic") for m, q in runs], 0.38, label="multi-turn",
 ax.axhline(0.5, color=INK, lw=0.6, ls=":")
 ax.set_xticks(x)
 ax.set_xticklabels([f"{m}\n{q.upper()}" for m, q in runs], fontsize=6)
-ax.set_ylabel("AUC (projection predicts refusal)")
-ax.set_ylim(0.5, 1.0)
-ax.set_title("Refusal direction stays coupled under quantization")
-ax.legend(frameon=False, loc="lower right", ncol=2)
+ax.set_ylabel("AUC (proj. predicts refusal)")
+ax.set_ylim(0.5, 1.02)
+ax.set_title("Refusal direction stays coupled under quantization", fontsize=8)
+ax.legend(frameon=False, loc="upper center", bbox_to_anchor=(0.5, -0.22),
+          ncol=2, handlelength=1.4, columnspacing=1.4)
+fig.subplots_adjust(bottom=0.28)
 save(fig, "fig3_coupling")
 
 print("wrote fig1_multiturn, fig2_cold_vs_ic, fig3_coupling (.pdf + .png)")

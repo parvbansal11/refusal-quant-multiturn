@@ -217,8 +217,8 @@ multi-turn effect is not.}
 \end{table}
 
 \paragraph{Multi-turn refusal does not depend on precision.}
-Table~\ref{tab:means} gives the rates and Figure~\ref{fig:multiturn} plots the
-in-context column. For 3B the two precisions are identical at 23\% (McNemar
+Table~\ref{tab:means} gives the rates, and Figure~\ref{fig:hero}(a) plots the
+in-context refusal. For 3B the two precisions are identical at 23\% (McNemar
 $\chi^2=0.25$, $p=0.62$), and the paired projection difference is null ($t=0.57$,
 $p=0.57$). For 8B the three precisions span 27 to 32\%, and Cochran's $Q$ over
 the paired refusals is not significant ($Q=4.2$, $p=0.12$). The non-refusal rate
@@ -287,7 +287,8 @@ Refusal is a lenient signal. We rescore every completion with Llama Guard 3
 (Table~\ref{tab:harm}). Two things follow. First, quantization does not raise the
 harmful-response rate in any condition; every quantized run is at or below its
 FP16 baseline and no comparison is significant, so the null survives a second,
-stricter metric. Second, the harm rate is far below the non-refusal rate: the
+stricter metric (Figure~\ref{fig:twometric}). Second, the harm rate is far below
+the non-refusal rate: the
 CoSafe attack takes 8B to a 73\% non-refusal rate by the substring metric, but
 only 6\% of those responses are judged harmful. The attack mostly produces
 non-refusing but non-harmful text. Refusal-based attack success overstates actual
@@ -299,11 +300,12 @@ To rule that out, we prepend a safety system prompt to every FP16 condition, an
 intervention that should change behavior. It does, and the harm metric detects
 it: under the multi-turn attack, the system prompt cuts 8B harmful responses from
 6\% to 0\% (McNemar $p=0.041$) and raises multi-turn refusal from 27\% to 38\%
-($p=0.006$). So the harm metric is not saturated; it registers a real safety
+($p=0.006$; Figure~\ref{fig:hero}b). So the harm metric is not saturated; it
+registers a real safety
 intervention on the same prompts where quantization registers nothing. The
-quantization null is a measured absence of effect, not an absence of power.
-Notably, the system prompt is the opposite of quantization here: it does move
-multi-turn safety, which is why it makes a clean control.
+quantization null is a measured absence of effect, not an absence of power. The
+system prompt is the opposite of quantization here: it moves multi-turn safety,
+which is what makes it a clean control.
 
 \begin{table}[t]
 \centering
@@ -324,26 +326,37 @@ $p \geq 0.48$).}
 \label{tab:harm}
 \end{table}
 
-\begin{figure}[t]
+\begin{figure*}[t]
 \centering
-\includegraphics[width=\columnwidth]{fig1_multiturn.pdf}
-\caption{Multi-turn (in-context) refusal by precision, with Wilson 95\%
-intervals. Precisions overlap within each model.}
-\label{fig:multiturn}
-\end{figure}
+\includegraphics[width=0.9\textwidth]{fig_hero.pdf}
+\caption{The two-metric null in one view. (a) Multi-turn refusal does not vary
+with precision (Wilson 95\% intervals overlap). (b) Multi-turn harmful-response
+rate is low and does not rise under quantization, yet a safety system prompt drops
+it to 0\%, showing the metric can detect a real intervention.}
+\label{fig:hero}
+\end{figure*}
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=0.9\textwidth]{fig_twometric.pdf}
+\caption{Single-turn versus multi-turn on both metrics for Llama-3.1-8B.
+Quantization moves neither refusal (a) nor harmful-response rate (b) at either
+horizon.}
+\label{fig:twometric}
+\end{figure*}
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=0.86\columnwidth]{fig2_cold_vs_ic.pdf}
+\includegraphics[width=0.92\columnwidth]{fig2_cold_vs_ic.pdf}
 \caption{Llama-3.1-8B refusal, single turn (cold) versus multi-turn
-(in-context). The single-turn precision gap (23/31/34\%) narrows and loses
-significance in context.}
+(in-context). The single-turn precision gap narrows and loses significance in
+context.}
 \label{fig:coldvsic}
 \end{figure}
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=0.86\columnwidth]{fig3_coupling.pdf}
+\includegraphics[width=0.92\columnwidth]{fig3_coupling.pdf}
 \caption{AUC of projection onto the refusal direction predicting refusal. The
 direction stays coupled to behavior under every precision.}
 \label{fig:coupling}
