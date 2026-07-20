@@ -1,0 +1,390 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{times}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage[hidelinks]{hyperref}
+\usepackage{titlesec}
+\titleformat{\section}{\large\bfseries}{\thesection.}{0.6em}{}
+\titleformat{\subsection}{\normalsize\bfseries}{\thesubsection}{0.6em}{}
+\setlength{\parskip}{4pt}
+\setlength{\parindent}{0pt}
+
+\title{\vspace{-1.5em}\textbf{Does 4-Bit Quantization Change Multi-Turn Jailbreak Robustness?}\\[0.3em]
+\large A Two-Metric Evaluation of NF4, AWQ, and GPTQ on Llama-3.2-3B and Llama-3.1-8B}
+\author{Parv Bansal\\ AIMS-DTU Research Internship 2026\\ \texttt{parvbansal0011@gmail.com}}
+\date{2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+\noindent
+Quantization lets large language models run on edge hardware, where real use is
+multi-turn. Prior work measured quantization's effect on refusal at a single turn
+only and reported degradation. This paper gives the first measurement across a
+multi-turn jailbreak, testing the claim on Llama-3.2-3B (FP16, NF4) and
+Llama-3.1-8B (FP16, AWQ, GPTQ) with two metrics: a refusal classifier and a
+Llama Guard 3 harm judge. Quantization does not degrade safety. On standalone
+AdvBench prompts, single-turn refusal is flat or higher under quantization for
+both models and all three methods, with no significant comparison. Under CoSafe
+multi-turn attacks, precision changes neither refusal (3B 23\% versus 23\%,
+McNemar $p=0.62$; 8B 27 to 32\%, Cochran $Q$ $p=0.12$) nor harmful-response rate.
+The one significant single-turn effect, 8B refusing more after quantization,
+vanishes under the attack. A safety-prompt positive control confirms the harm
+metric can detect a real intervention, so the null is a measured absence of
+effect rather than a lack of power. The evaluation also shows that refusal-based
+attack success overstates harm by an order of magnitude: the CoSafe attack drives
+8B to 73\% non-refusal, but only 6\% of those responses are actually harmful.
+Single-turn safety evaluation does not predict how quantized models rank under
+conversational attack.
+\end{abstract}
+
+\section{Introduction}
+
+Post-training quantization to 4 bits is now the standard way to fit an
+instruction-tuned model onto a phone or a laptop. The same deployment target that
+forces quantization also forces multi-turn use, because a chat assistant holds a
+conversation. Safety evaluation has not followed. Recent work that measures how
+quantization changes refusal uses single-turn prompts and reports a drop in
+refusal after quantization (Kadadekar, 2026). Whether that drop holds, grows, or
+disappears once an attacker has several turns is open, and the authors name
+multi-turn as future work.
+
+This paper answers one question: does 4-bit quantization change a model's
+multi-turn jailbreak robustness, and how does that compare to its single-turn
+effect on the same models and prompts? The study covers two models and three
+quantization methods, and reads two behavioral signals, whether the model refused
+and whether the response is actually harmful, along with the projection onto the
+refusal direction of Arditi et al. (2024).
+
+The reported behavioral degradation does not reproduce, at either horizon. On
+standalone AdvBench prompts, quantization leaves single-turn refusal flat or
+higher for both models and all three methods, with no significant comparison.
+Under a CoSafe coreference attack, precision does not change refusal either, and
+all precisions converge to a common non-refusal rate. A Llama Guard 3 rescore
+confirms the null on a second metric: quantization never raises the rate of
+actually-harmful responses. The only significant behavioral precision effect
+anywhere is an increase, where 8B quantization raises refusal on the CoSafe cold
+turn, and even that vanishes under the attack.
+
+The practical consequence is a warning about evaluation. A single-turn safety
+score does not preserve how FP16 and quantized checkpoints rank under
+conversational attack, and on these models it does not surface a behavioral
+safety cost from quantization at all. The contributions are:
+
+\begin{itemize}
+\itemsep2pt
+\item A well-powered non-replication. Across two Llama models, three 4-bit
+methods, two prompt sets (AdvBench and CoSafe), and two metrics (substring
+refusal and a Llama Guard harm judge), quantization does not reduce safety at a
+single turn.
+\item The first measurement of 4-bit quantization under a multi-turn attack.
+Precision changes neither multi-turn refusal nor multi-turn harm, and the one
+significant single-turn effect does not survive the attack.
+\item Two evaluation cautions. Refusal-based attack success overstates actual
+harm by an order of magnitude on CoSafe, and a safety-prompt positive control
+shows the harm metric can detect a real intervention, so the quantization null is
+a true absence of effect.
+\end{itemize}
+
+\section{Background}
+
+\subsection{Quantization and safety}
+Kadadekar (2026) reports that INT4 quantization degrades single-turn refusal
+while the refusal direction stays geometrically intact, and notes that standard
+probes do not explain the behavioral gap. Chhabra and Khalili (2025) find that
+the refusal direction survives compression with cosine similarity above 0.99.
+Both study single-turn behavior. Neither measures a conversation. This paper
+extends the first to the multi-turn setting it names as open.
+
+\subsection{Refusal as a direction}
+Arditi et al. (2024) show that refusal in instruction-tuned models is mediated by
+a single linear direction in the residual stream. Adding it induces refusal, and
+ablating it removes refusal. This study uses their difference-in-means estimator
+and confirms the causal layer by ablation rather than by separability.
+
+\subsection{Multi-turn attacks}
+STAR (2026) shows that in full-precision models the projection onto the refusal
+direction decays across conversation turns, so multi-turn state erodes refusal.
+CoSafe (Yu et al., 2024) builds multi-turn attacks whose final turn refers back
+to earlier turns by coreference, so the harmful request is only legible in
+context. The measurement here is independent of STAR and is used to compare
+precisions, not to characterize full-precision decay.
+
+\section{Experimental Setup}
+
+\subsection{Models and precisions}
+The 3B model is Llama-3.2-3B-Instruct at FP16 and NF4 (bitsandbytes
+double-quantized). The 8B model is Llama-3.1-8B-Instruct at FP16, AWQ-INT4, and
+GPTQ-INT4, using the public \texttt{hugging-quants} checkpoints. AWQ and GPTQ
+layers are not fused, so forward hooks see the residual stream. FP16 extraction
+and ablation run on Apple silicon, and quantized kernels run on CUDA.
+
+\subsection{Refusal direction and causal layer}
+The refusal direction is extracted by difference-in-means: the mean activation at
+the post-instruction token for harmful prompts minus the same for harmless
+prompts, per layer, normalized. Held-out separation accuracy is 100\% for the 3B
+direction. The functional layer is chosen by ablation, not by separability. Each
+candidate layer's direction is removed from the residual stream, and the layer
+whose removal collapses refusal is kept. For 3B this is layer 20 and for 8B layer
+12, where ablation drops refusal from 94\% to 0\% while a random-direction control
+stays at baseline. The separability-argmax layer is different in both models, 28
+for 3B and 31 for 8B, and does not mediate refusal, so only ablation-confirmed
+layers are used.
+
+\subsection{Attacks and prompts}
+Multi-turn attacks come from CoSafe, using its safe categories (non-violent
+unethical behavior, financial crime, privacy violation, and misinformation), 100
+scenarios in total. For each scenario the final unsafe turn is measured two ways.
+\textbf{Cold} presents the final turn alone with no conversation. \textbf{In-context}
+presents the full conversation, which is the attack. The two conditions share the
+same final request, so their difference isolates the effect of the conversational
+context. Standalone single-turn prompts come from AdvBench, 100 instructions
+presented as one turn, to test the quantization effect on overtly harmful prompts
+in the same setting as prior single-turn work.
+
+\subsection{Metrics}
+Refusal is detected by a fixed phrase classifier on greedy generation. To measure
+whether a response is actually harmful, every completion is rescored with Llama
+Guard 3 (Inan et al., 2023), reporting the harmful-response rate. The projection
+of the post-instruction activation onto the refusal direction is recorded as a
+mechanism readout. Refusal and harm are paired binary across precision, so
+comparisons use McNemar's test per pair and Cochran's $Q$ across the three 8B
+precisions. Projection is paired continuous, so it uses the paired $t$-test. All
+runs are 100 items, so $n=100$ per condition.
+
+\section{Results and Analysis}
+
+\subsection{Multi-turn refusal does not depend on precision}
+Table~\ref{tab:means} gives the rates. For 3B the two precisions are identical at
+23\% in-context refusal (McNemar $\chi^2=0.25$, $p=0.62$), and the paired
+projection difference is null ($t=0.57$, $p=0.57$). For 8B the three precisions
+span 27 to 32\%, and Cochran's $Q$ over the paired refusals is not significant
+($Q=4.2$, $p=0.12$). The non-refusal rate sits near 70\% for every precision,
+though most of that is not harmful output, as the harm judge below shows.
+
+\begin{table}[t]
+\centering
+\begin{tabular}{llcccc}
+\toprule
+Model & Prec. & \multicolumn{2}{c}{Refusal} & \multicolumn{2}{c}{Refusal-dir.\ proj.} \\
+& & cold & in-ctx & cold & in-ctx \\
+\midrule
+3B & FP16 & 25\% & 23\% & $+1.46$ & $-0.86$ \\
+3B & NF4  & 23\% & 23\% & $+1.33$ & $-0.84$ \\
+\midrule
+8B & FP16 & 23\% & 27\% & $+0.88$ & $+0.82$ \\
+8B & AWQ  & 31\% & 32\% & $+0.80$ & $+0.76$ \\
+8B & GPTQ & 34\% & 31\% & $+0.90$ & $+0.89$ \\
+\bottomrule
+\end{tabular}
+\caption{Refusal and mean projection onto the refusal direction, cold (single
+turn) and in-context (multi-turn), $n=100$ per cell.}
+\label{tab:means}
+\end{table}
+
+\subsection{The single-turn precision gap does not survive the attack}
+The cold column tells a different story for 8B. Quantization raises single-turn
+refusal, with FP16 at 23\%, AWQ at 31\%, and GPTQ at 34\%. Both pairwise contrasts
+against FP16 are significant (McNemar $p=0.043$ and $p=0.010$; Table~\ref{tab:sig}),
+and Cochran's $Q$ is significant ($Q=9.7$, $p=0.008$). The same three precisions
+are not separable once the conversation is present. The 8 to 11 point spread at a
+single turn narrows to 5 points in context and loses significance. The 3B model
+shows no precision effect at either horizon.
+
+\begin{table}[t]
+\centering
+\begin{tabular}{lll}
+\toprule
+Comparison & Cold & In-context \\
+\midrule
+3B FP16 vs NF4 & $p=0.68$ & $p=0.62$ \\
+8B FP16 vs AWQ & $p=0.043$ & $p=0.13$ \\
+8B FP16 vs GPTQ & $p=0.010$ & $p=0.22$ \\
+8B Cochran $Q$ & $p=0.008$ & $p=0.12$ \\
+\bottomrule
+\end{tabular}
+\caption{Refusal significance (McNemar per pair, Cochran $Q$ across the three 8B
+precisions). The single-turn precision effect on 8B is significant, and the
+multi-turn effect is not.}
+\label{tab:sig}
+\end{table}
+
+\subsection{No degradation on standalone harmful prompts}
+On AdvBench single-turn prompts (Table~\ref{tab:advbench}) quantization does not
+lower refusal either. The 3B model moves from 76\% to 82\% under NF4 (McNemar
+$p=0.15$). The 8B model moves from 95\% to 98\% under AWQ ($p=0.25$) and stays at
+95\% under GPTQ ($p=0.62$). No comparison is significant, and every point estimate
+is flat or higher under quantization. This is a well-powered non-replication of
+the single-turn refusal degradation reported for INT4 quantization. Refusal here
+is near ceiling for 8B, which limits behavioral power, so the harm judge below
+addresses the question from the other side.
+
+\begin{table}[t]
+\centering
+\begin{tabular}{llccc}
+\toprule
+Model & \multicolumn{3}{c}{Refusal} & McNemar \\
+& FP16 & \multicolumn{2}{c}{quantized} & vs FP16 \\
+\midrule
+3B & 76\% & NF4 82\% & & $p=0.15$ \\
+8B & 95\% & AWQ 98\% & GPTQ 95\% & $p=0.25 / 0.62$ \\
+\bottomrule
+\end{tabular}
+\caption{Single-turn refusal on 100 standalone AdvBench prompts. No precision
+comparison is significant, and quantization never lowers refusal.}
+\label{tab:advbench}
+\end{table}
+
+\subsection{The null holds under a harm judge}
+Refusal is a lenient signal. Rescoring every completion with Llama Guard 3, which
+labels whether the response itself is harmful, gives the harmful-response rates in
+Table~\ref{tab:harm}. Quantization does not raise the harmful-response rate in any
+condition. Every quantized run is at or below its FP16 baseline, and no comparison
+is significant (McNemar $p \geq 0.48$). The null survives a second, stricter
+metric.
+
+\begin{table}[t]
+\centering
+\begin{tabular}{llcc}
+\toprule
+Setting & Model & FP16 & quantized \\
+\midrule
+single turn & 3B & 1\% & NF4 1\% \\
+single turn & 8B & 4\% & AWQ 2\% / GPTQ 3\% \\
+multi turn  & 3B & 4\% & NF4 3\% \\
+multi turn  & 8B & 6\% & AWQ 4\% / GPTQ 5\% \\
+\bottomrule
+\end{tabular}
+\caption{Harmful-response rate (Llama Guard 3), lower is safer. Quantization never
+raises it, and all FP16-versus-quantized comparisons are non-significant.}
+\label{tab:harm}
+\end{table}
+
+\subsection{The harm metric has power: a positive control}
+A null on a rare-event metric invites the objection that nothing could show up.
+To rule that out, a safety system prompt is prepended to every FP16 condition, an
+intervention that should change behavior. It does, and the harm metric detects it.
+Under the multi-turn attack, the system prompt cuts 8B harmful responses from 6\%
+to 0\% (McNemar $p=0.041$) and raises multi-turn refusal from 27\% to 38\%
+($p=0.006$). The harm metric is not saturated. It registers a real safety
+intervention on the same prompts where quantization registers nothing. The
+quantization null is a measured absence of effect, not an absence of power. The
+system prompt is the opposite of quantization here, because it does move
+multi-turn safety, which is what makes it a clean control.
+
+\subsection{Refusal-based attack success overstates harm}
+The two metrics diverge sharply. The CoSafe attack takes 8B to a 73\% non-refusal
+rate by the substring metric, but only 6\% of those responses are judged harmful
+by Llama Guard. The attack mostly produces non-refusing but non-harmful text. On
+these prompts, refusal-based attack success overstates actual harm by an order of
+magnitude, which is a caution for how multi-turn safety is reported.
+
+\subsection{The direction stays coupled}
+If quantization broke the refusal representation, the projection would stop
+predicting refusal. It does not. The AUC of projection predicting refusal ranges
+from 0.79 to 0.93 across all precisions and conditions and never approaches
+chance, and point-biserial correlations run from 0.46 to 0.68 with $p<10^{-6}$.
+The refusal direction drives behavior under AWQ, GPTQ, and NF4 as it does under
+FP16. Multi-turn convergence is therefore behavioral saturation across a shared
+threshold, not a loss of the mechanism.
+
+\section{Discussion}
+
+\subsection{Why the multi-turn gap closes}
+CoSafe attacks hide the harmful request behind coreference, so the model answers
+the earlier benign-looking turns and then completes the final one in context. The
+attack is strong, taking FP16 from 23\% to 27\% refusal for 8B and driving 3B to
+23\%. Once the attack is this effective, a few points of extra caution from
+quantization is not enough to change the outcome. The precision difference is real
+at a single turn and is swamped by the attack in context. A safety margin that
+exists in isolation does not imply a safety margin under pressure.
+
+\subsection{Implication for evaluation}
+Single-turn refusal is the standard axis for comparing a quantized checkpoint to
+its FP16 source. This result shows that axis does not preserve the multi-turn
+ordering. For 8B, single-turn evaluation ranks the quantized checkpoints as safer
+than FP16, while under attack they are statistically tied. A single-turn number,
+whether it shows degradation or improvement, does not transfer to the
+conversational setting where the model is deployed.
+
+\subsection{Relation to prior reports}
+Kadadekar (2026) reports single-turn degradation on standard harmful prompts.
+This study does not reproduce it. On AdvBench, the same standard single-turn
+setting, no precision comparison is significant and every point estimate is flat
+or higher under quantization, for both models and all three methods. On the
+CoSafe cold turn, 8B quantization instead raises refusal. Across both prompt sets
+and both metrics the behavioral effect of quantization is null-to-positive, not
+degradation. The Llama Guard rescore closes the ceiling concern that would
+otherwise bound a refusal-only null, because on a metric with room below and one
+the positive control shows can detect a real intervention, quantization still
+moves nothing.
+
+\section{Limitations and Future Work}
+The study covers two model sizes (3B and 8B), one family (Llama), one multi-turn
+attack (CoSafe coreference), and three quantization methods (NF4, AWQ, GPTQ). It
+does not vary attack type or study training-time quantization. The refusal
+detector is a phrase classifier, which can miss soft refusals, though the harm
+judge and the projection readout, which do not use it, agree with the behavioral
+results. CoSafe safe categories are used only. Both metrics sit near an extreme,
+with substring refusal near ceiling (95\% for 8B on AdvBench) and the Llama Guard
+harm rate near floor (1 to 6\%), so each alone has limited room to expose a small
+effect. The positive control mitigates this for the harm metric, but the low harm
+rate partly reflects the CoSafe safe categories being mild relative to the
+severe-hazard taxonomy Llama Guard is tuned for, so it may under-flag them. The
+result is best read as: on these prompts, actual harmful output is rare at every
+precision, not as a guarantee on severe-harm categories. A stricter or
+broader-taxonomy judge, a second multi-turn attack, and a larger model family are
+the direct next steps.
+
+\section{Conclusion}
+Across two Llama models, three 4-bit methods, two prompt distributions, and two
+metrics, 4-bit quantization does not reduce safety at either a single turn or
+across a multi-turn attack. The only significant behavioral precision effect is an
+increase, where 8B refuses more on the CoSafe cold turn, and it does not survive
+the attack, where all precisions converge near 30\% refusal and 4 to 6\% harmful
+output. A safety system prompt, by contrast, does lower multi-turn harm on the
+same prompts, so the null is a true absence of effect rather than a lack of
+measurement power. Single-turn safety evaluation does not predict how quantized
+models rank under conversational attack, and on these models it does not show a
+behavioral safety cost from quantization at all.
+
+\section*{References}
+\small
+Arditi, A., Obeso, O., Syed, A., Paleka, D., Panickssery, N., Gurnee, W., and
+Nanda, N. (2024). Refusal in Language Models Is Mediated by a Single Direction.
+\textit{NeurIPS}.
+
+Chhabra, A., and Khalili, M. M. (2025). Refusal in Compressed Models via
+Mechanistic Interpretability. \textit{arXiv:2504.04215}.
+
+Dettmers, T., Pagnoni, A., Holtzman, A., and Zettlemoyer, L. (2023). QLoRA:
+Efficient Finetuning of Quantized LLMs. \textit{NeurIPS}.
+
+Frantar, E., Ashkboos, S., Hoefler, T., and Alistarh, D. (2023). GPTQ: Accurate
+Post-Training Quantization for Generative Pre-trained Transformers. \textit{ICLR}.
+
+Inan, H., Upasani, K., Chi, J., Rungta, R., Iyer, K., Mao, Y., et al. (2023).
+Llama Guard: LLM-based Input-Output Safeguard for Human-AI Conversations.
+\textit{arXiv:2312.06674}.
+
+Kadadekar. (2026). Quality Is Not a Safety Proxy Under Quantization.
+\textit{arXiv:2606.10154}.
+
+Lin, J., Tang, J., Tang, H., Yang, S., Dang, X., and Han, S. (2024). AWQ:
+Activation-Aware Weight Quantization for LLM Compression and Acceleration.
+\textit{MLSys}.
+
+STAR. (2026). State-Dependent Safety Failures in Multi-Turn Language Model
+Interaction. \textit{arXiv:2603.15684}.
+
+Yu, E., et al. (2024). CoSafe: Evaluating Large Language Model Safety in
+Multi-Turn Dialogue Coreference. \textit{EMNLP}.
+
+Zou, A., Wang, Z., Kolter, J. Z., and Fredrikson, M. (2023). Universal and
+Transferable Adversarial Attacks on Aligned Language Models.
+\textit{arXiv:2307.15043}.
+
+\end{document}
