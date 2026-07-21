@@ -96,8 +96,8 @@ refusal, ablating it removes refusal. We use their difference-in-means estimator
 and confirm the causal layer by ablation.
 
 \paragraph{Quantization and safety.}
-\citet{kadadekar2026quality} report that INT4 quantization degrades single-turn
-refusal while the refusal direction stays geometrically intact, and note that
+\citet{kadadekar2026quality} reports that INT4 quantization degrades single-turn
+refusal while the refusal direction stays geometrically intact, and notes that
 standard probes do not explain the behavioral gap. \citet{chhabra2025refusal}
 find that the refusal direction survives compression with cosine similarity
 above 0.99. Both study single-turn behavior. Neither measures a conversation.
@@ -370,7 +370,7 @@ A single-turn number, whether it shows degradation or improvement, does not
 transfer to the conversational setting where the model is deployed.
 
 \paragraph{Relation to prior reports.}
-\citet{kadadekar2026quality} report single-turn degradation on standard harmful
+\citet{kadadekar2026quality} reports single-turn degradation on standard harmful
 prompts. We do not reproduce it. On AdvBench, the same standard single-turn
 setting, no precision comparison is significant and every point estimate is flat
 or higher under quantization, for both models and all three methods. On the
