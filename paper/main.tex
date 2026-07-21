@@ -228,10 +228,9 @@ The cold column tells a different story for 8B. Quantization raises single-turn
 refusal: FP16 refuses 23\%, AWQ 31\%, GPTQ 34\%. Both pairwise contrasts against
 FP16 are significant (McNemar $p=0.043$ and $p=0.010$; Table~\ref{tab:sig}), and
 Cochran's $Q$ is significant ($Q=9.7$, $p=0.008$). The same three precisions are
-not separable once the conversation is present. Figure~\ref{fig:coldvsic} shows
-the gap closing: the 8 to 11 point spread at a single turn narrows to 5 points
-in context and loses significance. 3B shows no precision effect at either
-horizon.
+not separable once the conversation is present: the 8 to 11 point spread at a
+single turn narrows to 5 points in context and loses significance
+(Figure~\ref{fig:twometric}a). 3B shows no precision effect at either horizon.
 
 \paragraph{The direction stays coupled.}
 If quantization broke the refusal representation, projection would stop
@@ -342,15 +341,6 @@ Quantization moves neither refusal (a) nor harmful-response rate (b) at either
 horizon.}
 \label{fig:twometric}
 \end{figure*}
-
-\begin{figure}[t]
-\centering
-\includegraphics[width=0.92\columnwidth]{fig2_cold_vs_ic.pdf}
-\caption{Llama-3.1-8B refusal, single turn (cold) versus multi-turn
-(in-context). The single-turn precision gap narrows and loses significance in
-context.}
-\label{fig:coldvsic}
-\end{figure}
 
 \begin{figure}[t]
 \centering

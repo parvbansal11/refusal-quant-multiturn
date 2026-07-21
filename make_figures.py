@@ -115,7 +115,6 @@ ax.bar(x - 0.2, [auc(m, q, "cold") for m, q in runs], 0.38, label="single turn",
        color="#b0b0b0", edgecolor=INK, linewidth=0.5)
 ax.bar(x + 0.2, [auc(m, q, "ic") for m, q in runs], 0.38, label="multi-turn",
        color="#4c72b0", edgecolor=INK, linewidth=0.5)
-ax.axhline(0.5, color=INK, lw=0.6, ls=":")
 ax.set_xticks(x)
 ax.set_xticklabels([f"{m}\n{q.upper()}" for m, q in runs], fontsize=6)
 ax.set_ylabel("AUC (proj. predicts refusal)")

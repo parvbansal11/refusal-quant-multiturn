@@ -46,7 +46,6 @@ def bars(ax, labels, vals, errs=None, note=None):
         ax.text(xi, v + top*0.03 + 0.6, f"{v:.0f}", ha="center", va="bottom",
                 fontsize=8.5)
     ax.set_xticks(x); ax.set_xticklabels(labels)
-    ax.grid(axis="y", color="#dddddd", linewidth=0.6, zorder=0)
 
 
 # ---- fig_hero: the two-metric null in one glance ----
@@ -94,7 +93,6 @@ axes[0].set_xticks(x); axes[0].set_xticklabels(prec)
 axes[0].set_ylabel("refusal (%)"); axes[0].set_ylim(0, 45)
 axes[0].set_title("(a) Refusal metric (8B)")
 axes[0].legend(frameon=False, loc="upper left")
-axes[0].grid(axis="y", color="#dddddd", linewidth=0.6, zorder=0)
 # right: harm single->multi for 8B precisions
 hs = [harm("st_8b_fp16"), harm("st_8b_awq"), harm("st_8b_gptq")]
 hm = [harm("mt_8b_fp16"), harm("mt_8b_awq"), harm("mt_8b_gptq")]
@@ -106,7 +104,6 @@ axes[1].set_xticks(x); axes[1].set_xticklabels(prec)
 axes[1].set_ylabel("harmful responses (%)"); axes[1].set_ylim(0, 12)
 axes[1].set_title("(b) Harm metric (8B)")
 axes[1].legend(frameon=False, loc="upper left")
-axes[1].grid(axis="y", color="#dddddd", linewidth=0.6, zorder=0)
 fig.suptitle("Quantization moves neither metric, single-turn or multi-turn",
              y=1.10, fontsize=10, fontweight="bold")
 fig.subplots_adjust(top=0.80, wspace=0.32)
