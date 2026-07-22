@@ -288,8 +288,23 @@ stricter metric (Figure~\ref{fig:twometric}). Second, the harm rate is far below
 the non-refusal rate: the
 CoSafe attack takes 8B to a 73\% non-refusal rate by the substring metric, but
 only 6\% of those responses are judged harmful. The attack mostly produces
-non-refusing but non-harmful text. Refusal-based attack success overstates actual
-harm by an order of magnitude here.
+non-refusing but non-harmful text. Figure~\ref{fig:refusalharm} shows the gap is
+specific to the multi-turn setting. Averaged over precisions, refusal-based
+attack success overstates harm by 4.9x at a single turn but 16.5x under the
+multi-turn attack, and of the responses the refusal metric flags as attacked,
+only 6\% are actually harmful multi-turn versus 50\% single-turn. A multi-turn
+jailbreak that reports success by non-refusal therefore measures whether the
+model kept talking, not whether it produced harm.
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=0.9\textwidth]{fig_refusal_harm.pdf}
+\caption{Refusal-based attack success (non-refusal rate, red) versus actually
+harmful output (Llama Guard, blue). The two agree at a single turn but diverge
+sharply under the multi-turn attack, where non-refusal reaches 68 to 77\% while
+harm stays at 3 to 6\%.}
+\label{fig:refusalharm}
+\end{figure*}
 
 \paragraph{The harm metric has power: a positive control.}
 A null on a rare-event metric invites the objection that nothing could show up.

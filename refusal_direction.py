@@ -20,18 +20,29 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 from datasets import load_dataset
 
 # Base model chosen by the MODEL env var (default 3B for continuity).
-#   MODEL=3b -> Llama-3.2-3B-Instruct
-#   MODEL=8b -> Meta-Llama-3.1-8B-Instruct (has ready AWQ + GPTQ checkpoints)
+# Three families are supported for the multi-family study:
+#   Llama:   MODEL=3b (Llama-3.2-3B), MODEL=8b (Llama-3.1-8B)
+#   Qwen:    MODEL=qwen3b (Qwen2.5-3B), MODEL=qwen7b (Qwen2.5-7B)
+#   Mistral: MODEL=mistral7b (Mistral-7B-Instruct-v0.3)
 _MODELS = {
     "3b": "meta-llama/Llama-3.2-3B-Instruct",
     "8b": "meta-llama/Meta-Llama-3.1-8B-Instruct",
+    "qwen3b": "Qwen/Qwen2.5-3B-Instruct",
+    "qwen7b": "Qwen/Qwen2.5-7B-Instruct",
+    "mistral7b": "mistralai/Mistral-7B-Instruct-v0.3",
 }
 BASE_KEY = os.environ.get("MODEL", "3b").lower()
 MODEL_ID = _MODELS.get(BASE_KEY, BASE_KEY)  # allow a full HF id too
 
-# Ready-made 4-bit checkpoints (used for awq/gptq). Only 8B has these.
-_AWQ = {"8b": "hugging-quants/Meta-Llama-3.1-8B-Instruct-AWQ-INT4"}
-_GPTQ = {"8b": "hugging-quants/Meta-Llama-3.1-8B-Instruct-GPTQ-INT4"}
+# Ready-made 4-bit AWQ/GPTQ checkpoints. nf4 works for any base via bitsandbytes.
+_AWQ = {
+    "8b": "hugging-quants/Meta-Llama-3.1-8B-Instruct-AWQ-INT4",
+    "qwen7b": "Qwen/Qwen2.5-7B-Instruct-AWQ",
+}
+_GPTQ = {
+    "8b": "hugging-quants/Meta-Llama-3.1-8B-Instruct-GPTQ-INT4",
+    "qwen7b": "Qwen/Qwen2.5-7B-Instruct-GPTQ-Int4",
+}
 
 
 def get_device():
