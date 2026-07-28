@@ -93,71 +93,54 @@ measured absence of effect rather than a lack of power.
 \end{itemize}
 
 \section{Related Work}
-\paragraph{Post-training quantization.}
-Reducing weights below 16 bits is now routine for deployment. LLM.int8()
-\citep{dettmers2022llmint8} and SmoothQuant \citep{xiao2023smoothquant} handle
-the activation outliers that break naive 8-bit schemes, and GPTQ
-\citep{frantar2023gptq} and AWQ \citep{lin2024awq} push accurate post-training
-quantization to 4 bits, the setting we study. NF4 \citep{dettmers2023qlora} is
-the bitsandbytes format used for on-the-fly 4-bit loading.
-\citet{dettmers2023case} give scaling laws arguing 4-bit is close to the
-accuracy-per-bit optimum, which is why it dominates in practice.
-
-\paragraph{Safety training and its fragility.}
-Instruction tuning with human feedback \citep{ouyang2022training} and
-constitutional methods \citep{bai2022constitutional} install the refusal
-behavior these attacks target, and red teaming
-\citep{ganguli2022red,perez2022red} probes it. That behavior is brittle to
-post-hoc modification: \citet{qi2024finetuning} show a few fine-tuning steps
-undo safety alignment even without malicious intent. Our question is whether
-4-bit quantization, a far more common post-hoc modification, does the same.
-
-\paragraph{Quantization, compression and safety.}
-\citet{egashira2024exploiting} give the adversarial case, constructing models
+\paragraph{Quantization and safety.}
+Sub-16-bit deployment is routine: LLM.int8() \citep{dettmers2022llmint8} handles
+the activation outliers that break naive schemes, and GPTQ
+\citep{frantar2023gptq}, AWQ \citep{lin2024awq}, and NF4
+\citep{dettmers2023qlora} bring accurate post-training quantization to 4 bits,
+the setting we study. Safety behavior installed by preference training
+\citep{ouyang2022training,bai2022constitutional} and probed by red teaming
+\citep{ganguli2022red,perez2022red} is brittle to post-hoc modification:
+\citet{qi2024finetuning} show a few fine-tuning steps undo alignment even
+without malicious intent, and \citet{egashira2024exploiting} construct models
 that behave benignly at full precision and turn harmful once quantized.
-\citet{hong2024decoding} audit trustworthiness across compression methods more
-broadly. \citet{kadadekar2026quality} asks whether retained output quality can
-stand in for direct safety testing after quantization, over a matched matrix of
-models and quantization stacks. It cannot: quality stays flat while single-turn
-refusal falls by 12 to 68 points in the affected cells, and the direction of the
-effect splits across models rather than holding uniformly. A mechanistic
-follow-up finds entropy, refusal-direction, and calibration probes are weak or
-null separators of the dangerous cells. \citet{chhabra2025refusal} separately
-report that the refusal direction survives compression with cosine similarity
-above 0.99. All of this is single-turn.
-\citet{kadadekar2026quality} lists multi-turn strategic attacks as outside its
-scope and names them as future work. That is the gap we fill.
+\citet{hong2024decoding} audit trustworthiness across compression more broadly.
+Closest to us, \citet{kadadekar2026quality} asks whether retained output quality
+can substitute for direct safety testing after quantization. It cannot: quality
+stays flat while single-turn refusal falls 12 to 68 points in affected cells,
+and the direction of the effect splits across models rather than holding
+uniformly. \citet{chhabra2025refusal} separately report the refusal direction
+survives compression with cosine similarity above 0.99. All of this is
+single-turn, and \citet{kadadekar2026quality} lists multi-turn strategic attacks
+as out of scope and names them as future work. That is the gap we fill.
 
 \paragraph{Jailbreak attacks.}
-Single-turn attacks range from gradient-based adversarial suffixes
-\citep{zou2023universal} and stealthy prompt search
-\citep{liu2024autodan,chao2023jailbreaking} to in-the-wild prompts collected
-from users \citep{shen2024anything}, with \citet{wei2023jailbroken} explaining
-failures as competing objectives and mismatched generalization. Multi-turn
-attacks instead build harmful context gradually. Crescendo
-\citep{russinovich2024crescendo} escalates over benign-looking turns, and CoSafe
-\citep{yu2024cosafe}, which we use, hides the harmful request behind coreference
-so the final turn is only legible in context. \citet{star2026state} show that in
-full-precision models the projection onto the refusal direction decays across
-turns. We measure the analogous quantity across precisions, and use it to
-compare precisions rather than to characterize full-precision decay.
+Single-turn attacks span gradient-based suffixes \citep{zou2023universal} and
+stealthy prompt search \citep{liu2024autodan,chao2023jailbreaking}, with
+\citet{wei2023jailbroken} attributing failures to competing objectives and
+mismatched generalization. Multi-turn attacks instead build harmful context
+gradually: Crescendo \citep{russinovich2024crescendo} escalates over
+benign-looking turns, and CoSafe \citep{yu2024cosafe}, which we use, hides the
+request behind coreference so the final turn is only legible in context.
+\citet{star2026state} show the projection onto the refusal direction decays
+across turns in full-precision models; we measure the analogous quantity to
+compare precisions rather than to characterize that decay.
 
 \paragraph{Measuring jailbreak success.}
-How success is scored is itself contested. Many attack papers report success as
-the absence of refusal strings, which \citet{souly2024strongreject} show
-substantially overstates jailbreak effectiveness relative to human judgment;
-they propose a scoring rubric that measures how useful the response actually is,
-and report that jailbreaks which bypass safety training also degrade capability.
-HarmBench \citep{mazeika2024harmbench} and JailbreakBench
-\citep{chao2024jailbreakbench} standardize evaluation with trained classifiers,
-and model-based judges \citep{zheng2023judging,inan2023llamaguard} are now the
-common instrument. Our measurement question is adjacent but distinct. Prior
-critiques compare \emph{judges} on single-turn attacks, asking which scorer best
-matches human labels. We keep the judge fixed and ask what a reported multi-turn
-success rate is composed of, using a matched no-conversation baseline to
-separate harm the attack caused from harm the model emits anyway, and from
-non-refusal that carries no harm at all. To our knowledge this attribution
-decomposition has not been applied to multi-turn attacks.
+Scoring is itself contested. Many attack papers report success as the absence of
+refusal strings, which \citet{souly2024strongreject} show overstates
+effectiveness relative to human judgment, proposing instead a rubric for how
+useful the response is. HarmBench \citep{mazeika2024harmbench} and
+JailbreakBench \citep{chao2024jailbreakbench} standardize evaluation with
+trained classifiers, and model-based judges
+\citep{zheng2023judging,inan2023llamaguard} are now the common instrument. Our
+question is adjacent but distinct: prior critiques compare \emph{judges} on
+single-turn attacks, asking which scorer best matches human labels. We hold the
+judge fixed and ask what a reported multi-turn success rate is composed of,
+using a matched no-conversation baseline to separate harm the attack caused from
+harm the model emits anyway, and from non-refusal carrying no harm at all. To
+our knowledge this attribution decomposition has not been applied to multi-turn
+attacks.
 
 \section{Method}
 \paragraph{Models and precisions.}
@@ -217,6 +200,17 @@ we use the paired $t$-test. We report the 100-scenario runs; $n=100$ per
 condition.
 
 \section{Results}
+
+\begin{figure*}[!t]
+\centering
+\includegraphics[width=0.86\textwidth]{fig_hero.pdf}
+\caption{The two-metric null in one view. (a) Multi-turn refusal does not vary
+with precision (Wilson 95\% intervals overlap). (b) Multi-turn harmful-response
+rate is low and does not rise under quantization, yet a safety system prompt drops
+it to 0\%, showing the metric can detect a real intervention.}
+\label{fig:hero}
+\end{figure*}
+
 
 \begin{table}[t]
 \centering
@@ -278,9 +272,9 @@ single turn narrows to 5 points in context and loses significance
 
 \paragraph{The direction stays coupled.}
 If quantization broke the refusal representation, projection would stop
-predicting refusal. It does not. Figure~\ref{fig:coupling} reports the AUC of
-projection predicting refusal, per precision and condition. AUC ranges from 0.79
-to 0.93 and never approaches chance. Point-biserial correlations run from 0.46 to
+predicting refusal. It does not. The AUC of projection predicting refusal
+ranges from 0.79 to 0.93 across every precision and condition, never approaching
+chance. Point-biserial correlations run from 0.46 to
 0.68, all with $p<10^{-6}$. The refusal direction drives behavior under AWQ,
 GPTQ, and NF4 as it does under FP16. Multi-turn convergence is therefore
 behavioral saturation across a shared threshold, not a loss of the mechanism.
@@ -335,22 +329,21 @@ stricter metric. Second, the harm rate is far below
 the non-refusal rate: the
 CoSafe attack takes 8B to a 73\% non-refusal rate by the substring metric, but
 only 6\% of those responses are judged harmful. The attack mostly produces
-non-refusing but non-harmful text. Figure~\ref{fig:refusalharm} shows the gap is
-specific to the multi-turn setting. Averaged over precisions, refusal-based
-attack success overstates harm by 4.9x at a single turn but 16.5x under the
-multi-turn attack, and of the responses the refusal metric flags as attacked,
-only 6\% are actually harmful multi-turn versus 50\% single-turn. A multi-turn
-jailbreak that reports success by non-refusal therefore measures whether the
-model kept talking, not whether it produced harm.
+non-refusing but non-harmful text. The gap is specific to the multi-turn
+setting: averaged over precisions, refusal-based attack success overstates harm
+by 4.9x at a single turn but 16.5x under the multi-turn attack, and of the
+responses the refusal metric flags as attacked, only 6\% are actually harmful
+multi-turn versus 50\% single-turn. A multi-turn jailbreak that reports success
+by non-refusal therefore measures whether the model kept talking, not whether it
+produced harm.
 
-\begin{figure*}[t]
+\begin{figure*}[!t]
 \centering
-\includegraphics[width=0.9\textwidth]{fig_refusal_harm.pdf}
-\caption{Refusal-based attack success (non-refusal rate, red) versus actually
-harmful output (Llama Guard, blue). The two agree at a single turn but diverge
-sharply under the multi-turn attack, where non-refusal reaches 68 to 77\% while
-harm stays at 3 to 6\%.}
-\label{fig:refusalharm}
+\includegraphics[width=0.86\textwidth]{fig_attribution.pdf}
+\caption{(a) The reported multi-turn attack success rate is almost entirely
+non-harmful output. (b) Reported success and attack-attributable harm for every
+model and precision.}
+\label{fig:attrib}
 \end{figure*}
 
 \paragraph{Decomposing reported attack success.}
@@ -360,43 +353,13 @@ attributable to the attack only if the model refused the same request when asked
 cold, complied once the conversation was present, and produced harmful content.
 Compliance that also occurs cold is not evidence the attack worked, and
 non-refusal with no harmful content is not an attack success at all.
-Table~\ref{tab:attrib} and Figure~\ref{fig:attrib} give the decomposition. Of the
+Figure~\ref{fig:attrib} gives the decomposition. Of the
 73\% reported success rate, 69 points produce no harmful content, a further 3
 points reproduce harm the model also emits with no conversation, and 2 points are
 attributable to the attack. Reported multi-turn attack success therefore exceeds
 attack-attributable harm by roughly 40x, and the ordering across precisions is
 preserved under the stricter measure: quantization does not increase
 attack-attributable harm either.
-
-\begin{table}[t]
-\centering\small
-\begin{tabular}{lcccc}
-\toprule
-Run & reported & harmful & attrib. & no harm \\
-\midrule
-3B FP16  & 77\% & 4\% & 1\% & 74\% \\
-3B NF4   & 77\% & 3\% & 1\% & 74\% \\
-8B FP16  & 73\% & 6\% & 3\% & 67\% \\
-8B AWQ   & 68\% & 4\% & 2\% & 64\% \\
-8B GPTQ  & 69\% & 5\% & 2\% & 64\% \\
-\midrule
-mean     & 73\% & 4\% & 2\% & 69\% \\
-\bottomrule
-\end{tabular}
-\caption{Decomposition of reported multi-turn attack success. ``Attrib.'' counts
-scenarios the model refused cold, complied on in context, and answered with
-harmful content.}
-\label{tab:attrib}
-\end{table}
-
-\begin{figure*}[t]
-\centering
-\includegraphics[width=0.9\textwidth]{fig_attribution.pdf}
-\caption{(a) The reported multi-turn attack success rate is almost entirely
-non-harmful output. (b) Reported success and attack-attributable harm for every
-model and precision.}
-\label{fig:attrib}
-\end{figure*}
 
 \paragraph{The harm metric has power: a positive control.}
 A null on a rare-event metric invites the objection that nothing could show up.
@@ -430,24 +393,6 @@ $p \geq 0.48$).}
 \label{tab:harm}
 \end{table}
 
-\begin{figure*}[t]
-\centering
-\includegraphics[width=0.9\textwidth]{fig_hero.pdf}
-\caption{The two-metric null in one view. (a) Multi-turn refusal does not vary
-with precision (Wilson 95\% intervals overlap). (b) Multi-turn harmful-response
-rate is low and does not rise under quantization, yet a safety system prompt drops
-it to 0\%, showing the metric can detect a real intervention.}
-\label{fig:hero}
-\end{figure*}
-
-
-\begin{figure}[t]
-\centering
-\includegraphics[width=0.92\columnwidth]{fig3_coupling.pdf}
-\caption{AUC of projection onto the refusal direction predicting refusal. The
-direction stays coupled to behavior under every precision.}
-\label{fig:coupling}
-\end{figure}
 
 \section{Discussion}
 \paragraph{Why the gap closes.}
