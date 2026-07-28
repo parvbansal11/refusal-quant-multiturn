@@ -1,3 +1,4 @@
+% ---------- refusal mechanism and interpretability ----------
 @article{arditi2024refusal,
   title={Refusal in Language Models Is Mediated by a Single Direction},
   author={Arditi, Andy and Obeso, Oscar and Syed, Aaquib and Paleka, Daniel and Panickssery, Nina and Gurnee, Wes and Nanda, Neel},
@@ -5,45 +6,15 @@
   year={2024}
 }
 
-@misc{kadadekar2026quality,
-  title={Quality Is Not a Safety Proxy Under Quantization},
-  author={Kadadekar, Sahil},
-  year={2026},
-  eprint={2606.10154},
-  archivePrefix={arXiv}
-}
-
-@misc{star2026state,
-  title={State-Dependent Safety Failures in Multi-Turn Language Model Interaction},
-  author={Li, Pengcheng and Zhang, Jie and Zhang, Tianwei and Qiu, Han and Zhang, Kejun and Zhang, Weiming and Yu, Nenghai and Zhou, Wenbo},
-  year={2026},
-  eprint={2603.15684},
-  archivePrefix={arXiv}
-}
-
-@misc{chhabra2025refusal,
-  title={Refusal in Compressed Models via Mechanistic Interpretability},
-  author={Chhabra, Anshuman and Khalili, Mohammad Mahdi},
-  year={2025},
-  eprint={2504.04215},
-  archivePrefix={arXiv}
-}
-
-@inproceedings{yu2024cosafe,
-  title={{CoSafe}: Evaluating Large Language Model Safety in Multi-Turn Dialogue Coreference},
-  author={Yu, Erxin and others},
-  booktitle={Proceedings of the 2024 Conference on Empirical Methods in Natural Language Processing (EMNLP)},
-  year={2024}
-}
-
-@misc{zou2023universal,
-  title={Universal and Transferable Adversarial Attacks on Aligned Language Models},
-  author={Zou, Andy and Wang, Zifan and Kolter, J. Zico and Fredrikson, Matt},
+@misc{zou2023representation,
+  title={Representation Engineering: A Top-Down Approach to AI Transparency},
+  author={Zou, Andy and Phan, Long and Chen, Sarah and Campbell, James and Guo, Phillip and Ren, Richard and Pan, Alexander and Yin, Xuwang and Mazeika, Mantas and Dombrowski, Ann-Kathrin and others},
   year={2023},
-  eprint={2307.15043},
+  eprint={2310.01405},
   archivePrefix={arXiv}
 }
 
+% ---------- quantization methods ----------
 @inproceedings{frantar2023gptq,
   title={{GPTQ}: Accurate Post-Training Quantization for Generative Pre-trained Transformers},
   author={Frantar, Elias and Ashkboos, Saleh and Hoefler, Torsten and Alistarh, Dan},
@@ -65,12 +36,191 @@
   year={2023}
 }
 
-@misc{dubey2024llama,
-  title={The {Llama} 3 Herd of Models},
-  author={Dubey, Abhimanyu and others},
-  year={2024},
-  eprint={2407.21783},
+@article{dettmers2022llmint8,
+  title={{LLM.int8()}: 8-bit Matrix Multiplication for Transformers at Scale},
+  author={Dettmers, Tim and Lewis, Mike and Belkada, Younes and Zettlemoyer, Luke},
+  journal={Advances in Neural Information Processing Systems},
+  year={2022}
+}
+
+@inproceedings{xiao2023smoothquant,
+  title={{SmoothQuant}: Accurate and Efficient Post-Training Quantization for Large Language Models},
+  author={Xiao, Guangxuan and Lin, Ji and Seznec, Mickael and Wu, Hao and Demouth, Julien and Han, Song},
+  booktitle={International Conference on Machine Learning (ICML)},
+  year={2023}
+}
+
+@misc{dettmers2023case,
+  title={The Case for 4-bit Precision: k-bit Inference Scaling Laws},
+  author={Dettmers, Tim and Zettlemoyer, Luke},
+  year={2023},
+  eprint={2212.09720},
   archivePrefix={arXiv}
+}
+
+% ---------- quantization, compression and safety ----------
+@misc{kadadekar2026quality,
+  title={Quality Is Not a Safety Proxy Under Quantization},
+  author={Kadadekar, Sahil},
+  year={2026},
+  eprint={2606.10154},
+  archivePrefix={arXiv}
+}
+
+@misc{chhabra2025refusal,
+  title={Refusal in Compressed Models via Mechanistic Interpretability},
+  author={Chhabra, Anshuman and Khalili, Mohammad Mahdi},
+  year={2025},
+  eprint={2504.04215},
+  archivePrefix={arXiv}
+}
+
+@misc{egashira2024exploiting,
+  title={Exploiting {LLM} Quantization},
+  author={Egashira, Kazuki and Vero, Mark and Staab, Robin and He, Jingxuan and Vechev, Martin},
+  year={2024},
+  eprint={2405.18137},
+  archivePrefix={arXiv}
+}
+
+@misc{hong2024decoding,
+  title={Decoding Compressed Trust: Scrutinizing the Trustworthiness of Efficient {LLMs} Under Compression},
+  author={Hong, Junyuan and Duan, Jinhao and Zhang, Chenhui and Li, Zhangheng and Xie, Chulin and Lieberman, Kelsey and Diffenderfer, James and Bartoldson, Brian and Jaiswal, Ajay and Xu, Kaidi and others},
+  year={2024},
+  eprint={2403.15447},
+  archivePrefix={arXiv}
+}
+
+% ---------- alignment and safety training ----------
+@article{ouyang2022training,
+  title={Training Language Models to Follow Instructions with Human Feedback},
+  author={Ouyang, Long and Wu, Jeffrey and Jiang, Xu and Almeida, Diogo and Wainwright, Carroll and Mishkin, Pamela and Zhang, Chong and Agarwal, Sandhini and Slama, Katarina and Ray, Alex and others},
+  journal={Advances in Neural Information Processing Systems},
+  year={2022}
+}
+
+@misc{bai2022constitutional,
+  title={Constitutional {AI}: Harmlessness from {AI} Feedback},
+  author={Bai, Yuntao and Kadavath, Saurav and Kundu, Sandipan and Askell, Amanda and Kernion, Jackson and Jones, Andy and Chen, Anna and Goldie, Anna and Mirhoseini, Azalia and McKinnon, Cameron and others},
+  year={2022},
+  eprint={2212.08073},
+  archivePrefix={arXiv}
+}
+
+@misc{ganguli2022red,
+  title={Red Teaming Language Models to Reduce Harms: Methods, Scaling Behaviors, and Lessons Learned},
+  author={Ganguli, Deep and Lovitt, Liane and Kernion, Jackson and Askell, Amanda and Bai, Yuntao and Kadavath, Saurav and Mann, Ben and Perez, Ethan and Schiefer, Nicholas and Ndousse, Kamal and others},
+  year={2022},
+  eprint={2209.07858},
+  archivePrefix={arXiv}
+}
+
+@inproceedings{perez2022red,
+  title={Red Teaming Language Models with Language Models},
+  author={Perez, Ethan and Huang, Saffron and Song, Francis and Cai, Trevor and Ring, Roman and Aslanides, John and Glaese, Amelia and McAleese, Nat and Irving, Geoffrey},
+  booktitle={Proceedings of the 2022 Conference on Empirical Methods in Natural Language Processing (EMNLP)},
+  year={2022}
+}
+
+@inproceedings{qi2024finetuning,
+  title={Fine-tuning Aligned Language Models Compromises Safety, Even When Users Do Not Intend To!},
+  author={Qi, Xiangyu and Zeng, Yi and Xie, Tinghao and Chen, Pin-Yu and Jia, Ruoxi and Mittal, Prateek and Henderson, Peter},
+  booktitle={International Conference on Learning Representations (ICLR)},
+  year={2024}
+}
+
+% ---------- single-turn jailbreak attacks ----------
+@misc{zou2023universal,
+  title={Universal and Transferable Adversarial Attacks on Aligned Language Models},
+  author={Zou, Andy and Wang, Zifan and Kolter, J. Zico and Fredrikson, Matt},
+  year={2023},
+  eprint={2307.15043},
+  archivePrefix={arXiv}
+}
+
+@article{wei2023jailbroken,
+  title={Jailbroken: How Does {LLM} Safety Training Fail?},
+  author={Wei, Alexander and Haghtalab, Nika and Steinhardt, Jacob},
+  journal={Advances in Neural Information Processing Systems},
+  year={2023}
+}
+
+@misc{chao2023jailbreaking,
+  title={Jailbreaking Black Box Large Language Models in Twenty Queries},
+  author={Chao, Patrick and Robey, Alexander and Dobriban, Edgar and Hassani, Hamed and Pappas, George J. and Wong, Eric},
+  year={2023},
+  eprint={2310.08419},
+  archivePrefix={arXiv}
+}
+
+@misc{liu2024autodan,
+  title={{AutoDAN}: Generating Stealthy Jailbreak Prompts on Aligned Large Language Models},
+  author={Liu, Xiaogeng and Xu, Nan and Chen, Muhao and Xiao, Chaowei},
+  year={2024},
+  eprint={2310.04451},
+  archivePrefix={arXiv}
+}
+
+@misc{shen2024anything,
+  title={``Do Anything Now'': Characterizing and Evaluating In-The-Wild Jailbreak Prompts on Large Language Models},
+  author={Shen, Xinyue and Chen, Zeyuan and Backes, Michael and Shen, Yun and Zhang, Yang},
+  year={2024},
+  eprint={2308.03825},
+  archivePrefix={arXiv}
+}
+
+% ---------- multi-turn attacks ----------
+@misc{russinovich2024crescendo,
+  title={Great, Now Write an Article About That: The Crescendo Multi-Turn {LLM} Jailbreak Attack},
+  author={Russinovich, Mark and Salem, Ahmed and Eldan, Ronen},
+  year={2024},
+  eprint={2404.01833},
+  archivePrefix={arXiv}
+}
+
+@inproceedings{yu2024cosafe,
+  title={{CoSafe}: Evaluating Large Language Model Safety in Multi-Turn Dialogue Coreference},
+  author={Yu, Erxin and others},
+  booktitle={Proceedings of the 2024 Conference on Empirical Methods in Natural Language Processing (EMNLP)},
+  year={2024}
+}
+
+@misc{star2026state,
+  title={State-Dependent Safety Failures in Multi-Turn Language Model Interaction},
+  author={Li, Pengcheng and Zhang, Jie and Zhang, Tianwei and Qiu, Han and Zhang, Kejun and Zhang, Weiming and Yu, Nenghai and Zhou, Wenbo},
+  year={2026},
+  eprint={2603.15684},
+  archivePrefix={arXiv}
+}
+
+% ---------- evaluating jailbreak success ----------
+@article{souly2024strongreject,
+  title={A {StrongREJECT} for Empty Jailbreaks},
+  author={Souly, Alexandra and Lu, Qingyuan and Bowen, Dillon and Trinh, Tu and Hsieh, Elvis and Pandey, Sana and Abbeel, Pieter and Svegliato, Justin and Emmons, Scott and Watkins, Olivia and Toyer, Sam},
+  journal={Advances in Neural Information Processing Systems},
+  year={2024}
+}
+
+@inproceedings{mazeika2024harmbench,
+  title={{HarmBench}: A Standardized Evaluation Framework for Automated Red Teaming and Robust Refusal},
+  author={Mazeika, Mantas and Phan, Long and Yin, Xuwang and Zou, Andy and Wang, Zifan and Mu, Norman and Sakhaee, Elham and Li, Nathaniel and Basart, Steven and Li, Bo and Forsyth, David and Hendrycks, Dan},
+  booktitle={International Conference on Machine Learning (ICML)},
+  year={2024}
+}
+
+@misc{chao2024jailbreakbench,
+  title={{JailbreakBench}: An Open Robustness Benchmark for Jailbreaking Large Language Models},
+  author={Chao, Patrick and Debenedetti, Edoardo and Robey, Alexander and Andriushchenko, Maksym and Croce, Francesco and Sehwag, Vikash and Dobriban, Edgar and Flammarion, Nicolas and Pappas, George J. and Tramer, Florian and Hassani, Hamed and Wong, Eric},
+  year={2024},
+  eprint={2404.01318},
+  archivePrefix={arXiv}
+}
+
+@article{zheng2023judging,
+  title={Judging {LLM}-as-a-Judge with {MT-Bench} and {Chatbot Arena}},
+  author={Zheng, Lianmin and Chiang, Wei-Lin and Sheng, Ying and Zhuang, Siyuan and Wu, Zhanghao and Zhuang, Yonghao and Lin, Zi and Li, Zhuohan and Li, Dacheng and Xing, Eric and others},
+  journal={Advances in Neural Information Processing Systems},
+  year={2023}
 }
 
 @misc{inan2023llamaguard,
@@ -78,5 +228,13 @@
   author={Inan, Hakan and Upasani, Kartikeya and Chi, Jianfeng and Rungta, Rashi and Iyer, Krithika and Mao, Yuning and Tontchev, Michael and Hu, Qing and Fuller, Brian and Testuggine, Davide and Khabsa, Madian},
   year={2023},
   eprint={2312.06674},
+  archivePrefix={arXiv}
+}
+
+@misc{dubey2024llama,
+  title={The {Llama} 3 Herd of Models},
+  author={Dubey, Abhimanyu and others},
+  year={2024},
+  eprint={2407.21783},
   archivePrefix={arXiv}
 }

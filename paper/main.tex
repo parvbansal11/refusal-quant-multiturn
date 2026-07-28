@@ -93,41 +93,75 @@ measured absence of effect rather than a lack of power.
 \end{itemize}
 
 \section{Related Work}
-\paragraph{Refusal as a direction.}
-\citet{arditi2024refusal} show that refusal in instruction-tuned models is
-mediated by a single linear direction in the residual stream: adding it induces
-refusal, ablating it removes refusal. We use their difference-in-means estimator
-and confirm the causal layer by ablation.
+\paragraph{Post-training quantization.}
+Reducing weights below 16 bits is now routine for deployment. LLM.int8()
+\citep{dettmers2022llmint8} and SmoothQuant \citep{xiao2023smoothquant} handle
+the activation outliers that break naive 8-bit schemes, and GPTQ
+\citep{frantar2023gptq} and AWQ \citep{lin2024awq} push accurate post-training
+quantization to 4 bits, the setting we study. NF4 \citep{dettmers2023qlora} is
+the bitsandbytes format used for on-the-fly 4-bit loading.
+\citet{dettmers2023case} give scaling laws arguing 4-bit is close to the
+accuracy-per-bit optimum, which is why it dominates in practice.
 
-\paragraph{Quantization and safety.}
-\citet{kadadekar2026quality} audits whether retained output quality can stand in
-for direct safety testing after quantization, over a matched matrix of models
-and quantization stacks. It cannot: quality stays flat while single-turn refusal
-falls by 12 to 68 points in the affected cells, and the direction of the effect
-splits across models rather than holding uniformly. A mechanistic follow-up finds
-that entropy, refusal-direction, and calibration probes are weak or null
-separators of the dangerous cells. \citet{chhabra2025refusal} separately report
-that the refusal direction survives compression with cosine similarity above
-0.99. Both study single-turn behavior. Neither measures a conversation, and
+\paragraph{Safety training and its fragility.}
+Instruction tuning with human feedback \citep{ouyang2022training} and
+constitutional methods \citep{bai2022constitutional} install the refusal
+behavior these attacks target, and red teaming
+\citep{ganguli2022red,perez2022red} probes it. That behavior is brittle to
+post-hoc modification: \citet{qi2024finetuning} show a few fine-tuning steps
+undo safety alignment even without malicious intent. Our question is whether
+4-bit quantization, a far more common post-hoc modification, does the same.
+
+\paragraph{Quantization, compression and safety.}
+\citet{egashira2024exploiting} give the adversarial case, constructing models
+that behave benignly at full precision and turn harmful once quantized.
+\citet{hong2024decoding} audit trustworthiness across compression methods more
+broadly. \citet{kadadekar2026quality} asks whether retained output quality can
+stand in for direct safety testing after quantization, over a matched matrix of
+models and quantization stacks. It cannot: quality stays flat while single-turn
+refusal falls by 12 to 68 points in the affected cells, and the direction of the
+effect splits across models rather than holding uniformly. A mechanistic
+follow-up finds entropy, refusal-direction, and calibration probes are weak or
+null separators of the dangerous cells. \citet{chhabra2025refusal} separately
+report that the refusal direction survives compression with cosine similarity
+above 0.99. All of this is single-turn.
 \citet{kadadekar2026quality} lists multi-turn strategic attacks as outside its
 scope and names them as future work. That is the gap we fill.
 
-\paragraph{Multi-turn safety.}
-\citet{star2026state} show that in full-precision models the projection onto the
-refusal direction decays across conversation turns, so multi-turn state erodes
-refusal. We measure the analogous trajectory across precisions. Our measurement
-method is independent of theirs; we use it to compare precisions, not to
-characterize full-precision decay.
+\paragraph{Jailbreak attacks.}
+Single-turn attacks range from gradient-based adversarial suffixes
+\citep{zou2023universal} and stealthy prompt search
+\citep{liu2024autodan,chao2023jailbreaking} to in-the-wild prompts collected
+from users \citep{shen2024anything}, with \citet{wei2023jailbroken} explaining
+failures as competing objectives and mismatched generalization. Multi-turn
+attacks instead build harmful context gradually. Crescendo
+\citep{russinovich2024crescendo} escalates over benign-looking turns, and CoSafe
+\citep{yu2024cosafe}, which we use, hides the harmful request behind coreference
+so the final turn is only legible in context. \citet{star2026state} show that in
+full-precision models the projection onto the refusal direction decays across
+turns. We measure the analogous quantity across precisions, and use it to
+compare precisions rather than to characterize full-precision decay.
 
-\paragraph{Attacks and data.}
-CoSafe \citep{yu2024cosafe} builds multi-turn attacks whose final turn refers
-back to earlier turns by coreference, so the harmful request is only legible in
-context. We use its safe categories. Single-turn harmful prompts follow AdvBench
-\citep{zou2023universal}. Quantization uses NF4 \citep{dettmers2023qlora}, AWQ
-\citep{lin2024awq}, and GPTQ \citep{frantar2023gptq}.
+\paragraph{Measuring jailbreak success.}
+How success is scored is itself contested. Many attack papers report success as
+the absence of refusal strings, which \citet{souly2024strongreject} show
+substantially overstates jailbreak effectiveness relative to human judgment;
+they propose a scoring rubric that measures how useful the response actually is,
+and report that jailbreaks which bypass safety training also degrade capability.
+HarmBench \citep{mazeika2024harmbench} and JailbreakBench
+\citep{chao2024jailbreakbench} standardize evaluation with trained classifiers,
+and model-based judges \citep{zheng2023judging,inan2023llamaguard} are now the
+common instrument. Our measurement question is adjacent but distinct. Prior
+critiques compare \emph{judges} on single-turn attacks, asking which scorer best
+matches human labels. We keep the judge fixed and ask what a reported multi-turn
+success rate is composed of, using a matched no-conversation baseline to
+separate harm the attack caused from harm the model emits anyway, and from
+non-refusal that carries no harm at all. To our knowledge this attribution
+decomposition has not been applied to multi-turn attacks.
 
 \section{Method}
 \paragraph{Models and precisions.}
+Both models are from the Llama 3 family \citep{dubey2024llama}.
 Llama-3.2-3B-Instruct at FP16 and NF4 (bitsandbytes double-quantized). Llama-3.1-8B-Instruct
 at FP16, AWQ-INT4, and GPTQ-INT4, using the public \texttt{hugging-quants}
 checkpoints. AWQ and GPTQ layers are not fused, so forward hooks see the residual
@@ -135,10 +169,11 @@ stream. FP16 extraction and ablation run on Apple silicon; quantized kernels run
 on CUDA.
 
 \paragraph{Refusal direction.}
-We extract the direction by difference-in-means \citep{arditi2024refusal}:
-mean activation at the post-instruction token for harmful prompts minus the same
-for harmless prompts, per layer, normalized. Held-out separation accuracy is
-100\% for the 3B direction.
+We extract the direction by difference-in-means \citep{arditi2024refusal}, the
+standard linear-probe construction in representation-level analyses of model
+behavior \citep{zou2023representation}: mean activation at the post-instruction
+token for harmful prompts minus the same for harmless prompts, per layer,
+normalized. Held-out separation accuracy is 100\% for the 3B direction.
 
 \paragraph{Causal layer by ablation.}
 We do not pick the layer with the largest separation. We ablate each candidate
