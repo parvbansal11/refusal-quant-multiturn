@@ -30,8 +30,11 @@ def judge(model, tok, convo, device):
 def main():
     device = "cuda" if torch.cuda.is_available() else "cpu"
     tok = AutoTokenizer.from_pretrained(GUARD)
+    # device_map="auto" lets accelerate shard the judge across whatever GPUs are
+    # present. Llama Guard 3 8B is ~16GB in bf16, which does not fit a single
+    # 16GB card, so pinning it to one device OOMs on T4-class hardware.
     model = AutoModelForCausalLM.from_pretrained(GUARD, dtype=torch.bfloat16,
-                                                 device_map=device)
+                                                 device_map="auto")
     model.eval()
 
     files = sorted(glob.glob("completions_*.csv"))

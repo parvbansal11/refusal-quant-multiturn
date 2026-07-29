@@ -12,6 +12,22 @@ def sh(cmd, cwd=None):
     print(f"\n### {cmd}", flush=True)
     return subprocess.run(cmd, shell=True, cwd=cwd or (REPO if os.path.isdir(REPO) else WORK)).returncode
 
+# Preflight: without network access nothing below can work, and the run would
+# otherwise emit hundreds of misleading "file not found" errors.
+import socket
+try:
+    socket.getaddrinfo("github.com", 443)
+    print("network OK")
+except socket.gaierror:
+    raise SystemExit(
+        "\n" + "=" * 68 +
+        "\nNO INTERNET ACCESS IN THIS NOTEBOOK.\n\n"
+        "Fix: right panel > Session options > Internet -> On.\n"
+        "If the toggle is greyed out, Kaggle needs a verified phone number:\n"
+        "  kaggle.com/settings > Phone Verification.\n\n"
+        "Also confirm Persistence is set to 'Files only' so results survive.\n"
+        + "=" * 68)
+
 if not os.path.isdir(REPO):
     sh(f"git clone -q https://github.com/parvbansal11/refusal-quant-multiturn {REPO}", cwd=WORK)
 else:
