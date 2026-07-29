@@ -38,6 +38,7 @@ MODEL_ID = _MODELS.get(BASE_KEY, BASE_KEY)  # allow a full HF id too
 _AWQ = {
     "8b": "hugging-quants/Meta-Llama-3.1-8B-Instruct-AWQ-INT4",
     "qwen7b": "Qwen/Qwen2.5-7B-Instruct-AWQ",
+    "mistral7b": "solidrust/Mistral-7B-Instruct-v0.3-AWQ",
 }
 _GPTQ = {
     "8b": "hugging-quants/Meta-Llama-3.1-8B-Instruct-GPTQ-INT4",
