@@ -17,3 +17,6 @@ scenarios.json
 
 # keep: incontext_*.csv, singleturn_*.csv, advbench_harmful_behaviors.csv,
 # figures (paper/*.pdf), and all .py / .md sources are tracked.
+
+# archived original n=100 runs (superseded by n=200; kept for the AAAI submission record)
+!archive_n100/
