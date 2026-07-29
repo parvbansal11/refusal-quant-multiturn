@@ -5,7 +5,10 @@ setup = r'''# Setup: clone, pin environment, load HF token, show GPU.
 import os, subprocess, sys, time, shutil
 T0 = time.time()
 WORK, REPO = "/kaggle/working", "/kaggle/working/refusal-quant-multiturn"
-os.environ["HF_HOME"] = f"{WORK}/hf"
+# Weights go to scratch, not /kaggle/working: the working directory is the 20GB
+# persisted output quota, and a single 8B checkpoint in fp16 fills most of it.
+CACHE = "/kaggle/temp/hf"
+os.environ["HF_HOME"] = CACHE
 os.environ["HF_HUB_DISABLE_XET"] = "1"
 
 def sh(cmd, cwd=None):
@@ -45,6 +48,7 @@ except Exception as e:
 
 sh("nvidia-smi --query-gpu=name,memory.total --format=csv,noheader")
 sh("python -c \"import torch,transformers;print('torch',torch.__version__,'tf',transformers.__version__)\"")
+sh(f"df -h {WORK} /kaggle/temp")
 print(f"\nsetup done in {(time.time()-T0)/60:.1f} min")
 '''
 
@@ -83,6 +87,24 @@ def step(cmd, out, need_h=0.6):
     sh(cmd)
     return True
 
+def purge_cache():
+    """Drop downloaded weights between model families. Five families at 4-16GB
+    each overrun any disk here, and every checkpoint is used exactly once."""
+    hub = os.path.join(CACHE, "hub")
+    if os.path.isdir(hub):
+        shutil.rmtree(hub, ignore_errors=True)
+
+def causal_layer():
+    """The layer ablation.py proved mediates refusal, or None if it did not run.
+    Downstream scripts refuse without it, so check once instead of watching
+    every attack fail in turn."""
+    import torch
+    try:
+        return torch.load(os.path.join(REPO, "refusal_direction_fp16.pt"),
+                          map_location="cpu").get("ablation_best_layer")
+    except Exception:
+        return None
+
 sh(f"python cosafe_to_scenarios.py --per-category {N//4} --out scenarios.json")
 
 for model, precs in CHUNKS:
@@ -91,6 +113,8 @@ for model, precs in CHUNKS:
         break
     print(f"\n{'='*64}\n{model}  precisions={precs}  |  {left_h():.1f}h left\n{'='*64}", flush=True)
 
+    purge_cache()
+
     # direction + causal layer are per base model; rebuild once per model
     bundle = os.path.join(REPO, "refusal_direction_fp16.pt")
     if os.path.exists(bundle):
@@ -98,16 +122,22 @@ for model, precs in CHUNKS:
     sh(f"MODEL={model} python refusal_direction.py")
     sh(f"MODEL={model} python ablation.py --quick")
 
+    layer = causal_layer()
+    if layer is None:
+        print(f"SKIP {model}: no causal layer (direction or ablation failed above).")
+        continue
+    print(f"{model}: causal layer {layer}", flush=True)
+
     for q in precs:
         tag = f"{model}_{q}"
         env = f"MODEL={model} QUANT={q} python"
         print(f"\n--- {tag}  ({left_h():.1f}h left) ---", flush=True)
         ok = True
-        ok &= step(f"{env} cosafe_incontext.py --n {N} --tag {tag}",        f"incontext_{tag}.csv")
-        ok &= step(f"{env} dump_completions.py --mode multi --tag mt_{tag}", f"completions_mt_{tag}.csv")
-        ok &= step(f"{env} crescendo_attack.py --n {N} --tag cres_{tag}",    f"incontext_cres_{tag}.csv", need_h=1.0)
-        ok &= step(f"{env} singleturn_hardened.py --n {N} --tag st_{tag}",   f"singleturn_st_{tag}.csv", need_h=0.4)
-        ok &= step(f"{env} dump_completions.py --mode single --tag st_{tag}", f"completions_st_{tag}.csv", need_h=0.4)
+        ok &= step(f"{env} cosafe_incontext.py --n {N} --tag {tag}",               f"incontext_{tag}.csv")
+        ok &= step(f"{env} dump_completions.py --mode multi --n {N} --tag mt_{tag}", f"completions_mt_{tag}.csv")
+        ok &= step(f"{env} crescendo_attack.py --n {N} --tag cres_{tag}",          f"incontext_cres_{tag}.csv", need_h=1.0)
+        ok &= step(f"{env} singleturn_hardened.py --n {N} --tag st_{tag}",         f"singleturn_st_{tag}.csv", need_h=0.4)
+        ok &= step(f"{env} dump_completions.py --mode single --n {N} --tag st_{tag}", f"completions_st_{tag}.csv", need_h=0.4)
         if not ok:
             break
 

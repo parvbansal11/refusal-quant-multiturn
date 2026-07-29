@@ -43,19 +43,29 @@ def is_refusal(text):
 def make_hook(direction):
     """Directional ablation: remove the component along `direction` from the
     residual stream. Handles both tuple and tensor decoder-layer returns."""
+    cache = {}
+
+    def aligned(h):
+        # A sharded model puts its layers on several GPUs, so the direction has
+        # to follow the hidden states instead of sitting on one fixed device.
+        key = (h.device, h.dtype)
+        if key not in cache:
+            cache[key] = direction.to(device=h.device, dtype=h.dtype)
+        return cache[key]
+
     def hook(module, inp, out):
         if isinstance(out, tuple):
             h = out[0]
-            h = h - (h @ direction).unsqueeze(-1) * direction
-            return (h,) + out[1:]
-        h = out
-        return h - (h @ direction).unsqueeze(-1) * direction
+            d = aligned(h)
+            return (h - (h @ d).unsqueeze(-1) * d,) + out[1:]
+        d = aligned(out)
+        return out - (out @ d).unsqueeze(-1) * d
     return hook
 
 
 def install(model, direction):
-    d = direction.to(next(model.parameters()).dtype).to(next(model.parameters()).device)
-    return [layer.register_forward_hook(make_hook(d)) for layer in model.model.layers]
+    return [layer.register_forward_hook(make_hook(direction))
+            for layer in model.model.layers]
 
 
 def remove(handles):

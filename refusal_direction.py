@@ -13,6 +13,7 @@ Usage:
 """
 
 import argparse
+import csv
 import os
 import torch
 import torch.nn.functional as F
@@ -33,6 +34,9 @@ _MODELS = {
 }
 BASE_KEY = os.environ.get("MODEL", "3b").lower()
 MODEL_ID = _MODELS.get(BASE_KEY, BASE_KEY)  # allow a full HF id too
+
+# AdvBench ships with the repo so extraction does not depend on a gated dataset.
+ADVBENCH_CSV = "advbench_harmful_behaviors.csv"
 
 # Ready-made 4-bit AWQ/GPTQ checkpoints. nf4 works for any base via bitsandbytes.
 _AWQ = {
@@ -224,10 +228,11 @@ FALLBACK_HARMLESS = [
 
 
 def load_data(n):
-    """Load harmful and harmless prompt sets. Tries open HF datasets first
-    (Alpaca for harmless is reliably ungated); falls back to embedded lists
-    if a dataset is gated, renamed, or unreachable, so a dataset-hub issue
-    never blocks the extraction."""
+    """Load harmful and harmless prompt sets. The AdvBench copy committed to the
+    repo is the primary harmful source, so every machine extracts the direction
+    from identical prompts; the hub mirrors are tried only when that file is
+    missing, and an embedded list is the last resort so a gated or renamed
+    dataset never blocks the extraction."""
     harmful, harmless = None, None
 
     print("Loading harmless instructions from Alpaca ...")
@@ -238,9 +243,16 @@ def load_data(n):
         print(f"  Alpaca load failed ({e}); using embedded harmless fallback.")
 
     print("Loading harmful instructions ...")
-    for name in ["walledai/AdvBench", "JailbreakBench/JBB-Behaviors"]:
+    if os.path.exists(ADVBENCH_CSV):
+        with open(ADVBENCH_CSV, newline="") as f:
+            harmful = [r["goal"] for r in csv.DictReader(f) if r.get("goal")][:n]
+        print(f"  Loaded {len(harmful)} harmful prompts from {ADVBENCH_CSV}.")
+
+    # walledai/AdvBench is gated now and JBB-Behaviors needs its config named.
+    for name, cfg in [] if harmful else [("walledai/AdvBench", None),
+                                         ("JailbreakBench/JBB-Behaviors", "behaviors")]:
         try:
-            ds = load_dataset(name)
+            ds = load_dataset(name, cfg) if cfg else load_dataset(name)
             split = ds["train"] if "train" in ds else ds[list(ds.keys())[0]]
             key = "prompt" if "prompt" in split.column_names else (
                 "Goal" if "Goal" in split.column_names else split.column_names[0])
