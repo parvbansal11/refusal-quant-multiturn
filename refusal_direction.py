@@ -72,7 +72,7 @@ def load_model(device):
             bnb_4bit_use_double_quant=True,
         )
         model = AutoModelForCausalLM.from_pretrained(
-            MODEL_ID, quantization_config=bnb, device_map={"": 0})
+            MODEL_ID, quantization_config=bnb, device_map="auto")
     elif quant in ("awq", "gptq"):
         table = _AWQ if quant == "awq" else _GPTQ
         ckpt = table.get(BASE_KEY)
@@ -84,11 +84,19 @@ def load_model(device):
         # Do NOT fuse layers (fusing would hide the per-layer residual stream
         # from forward hooks). Default load does not fuse.
         model = AutoModelForCausalLM.from_pretrained(
-            ckpt, torch_dtype=torch.float16, device_map={"": 0})
+            ckpt, torch_dtype=torch.float16, device_map="auto")
     else:
         print(f"Loading {MODEL_ID} [fp16] on {device} ...")
-        model = AutoModelForCausalLM.from_pretrained(MODEL_ID, torch_dtype=torch.float16)
-        model.to(device)
+        if torch.cuda.is_available():
+            # Shard across available GPUs. An 8B model in fp16 is ~16GB, which
+            # does not fit a single 16GB card, so pinning to one device OOMs.
+            model = AutoModelForCausalLM.from_pretrained(
+                MODEL_ID, torch_dtype=torch.float16, device_map="auto")
+        else:
+            # MPS and CPU: single device, moved explicitly.
+            model = AutoModelForCausalLM.from_pretrained(
+                MODEL_ID, torch_dtype=torch.float16)
+            model.to(device)
     model.eval()
     return tok, model
 
