@@ -23,12 +23,15 @@ WORK = "/kaggle/working"
 REPO = f"{WORK}/refusal-quant-multiturn"
 N = int(os.environ.get("N", "200"))
 
-# Chunks sized to fit a single session. Run one per session, in order.
+# One model family per chunk, all its precisions together, so each session
+# downloads a base model once and reuses it. Sized for a 96GB card.
+# Run B first: the 8B four-way sweep is the comparison the paper rests on.
 CHUNKS = {
-    "A": [("3b", "nf4")],
-    "B": [("8b", "nf4"), ("8b", "awq"), ("8b", "gptq")],
-    "C": [("qwen3b", "nf4"), ("qwen7b", "nf4")],
-    "D": [("qwen7b", "awq"), ("qwen7b", "gptq"), ("mistral7b", "nf4")],
+    "A": [("3b", "fp16"), ("3b", "nf4")],
+    "B": [("8b", "fp16"), ("8b", "nf4"), ("8b", "awq"), ("8b", "gptq")],
+    "C": [("qwen3b", "fp16"), ("qwen3b", "nf4")],
+    "D": [("qwen7b", "fp16"), ("qwen7b", "nf4"), ("qwen7b", "awq"), ("qwen7b", "gptq")],
+    "E": [("mistral7b", "fp16"), ("mistral7b", "nf4")],
     "JUDGE": [],          # run judge_harm.py over whatever completions exist
 }
 WHICH = os.environ.get("WHICH", "B")
@@ -98,11 +101,16 @@ def main():
         sh("python analyze_attack_attribution.py")
         sh("python analyze_refusal_vs_harm.py")
     else:
+        current = None
         for model, quant in CHUNKS[WHICH]:
             print(f"\n{'='*60}\n{model} / {quant}\n{'='*60}", flush=True)
-            # each base model needs its own direction bundle
-            if os.path.exists(os.path.join(REPO, "refusal_direction_fp16.pt")):
-                os.remove(os.path.join(REPO, "refusal_direction_fp16.pt"))
+            # the direction and causal layer are per base model, so rebuild the
+            # bundle only when the base model changes, not per precision
+            if model != current:
+                bundle = os.path.join(REPO, "refusal_direction_fp16.pt")
+                if os.path.exists(bundle):
+                    os.remove(bundle)
+                current = model
             run_cell(model, quant)
 
     print("\nOutputs in", REPO)
