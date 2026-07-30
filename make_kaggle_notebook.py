@@ -40,7 +40,12 @@ except socket.gaierror:
 if not os.path.isdir(REPO):
     sh(f"git clone -q https://github.com/parvbansal11/refusal-quant-multiturn {REPO}", cwd=WORK)
 else:
-    sh("git pull -q")
+    # Persistence keeps the previous session's clone, and a plain pull can fail
+    # silently when local files collide with incoming ones. It did exactly that
+    # on the pod and cost a family's worth of duplicated GPU time. Nothing here
+    # commits, so hard-reset to the remote and be certain what is being judged.
+    sh("git fetch -q origin && git reset -q --hard origin/main")
+sh("git log --oneline -1")
 
 sh("pip install -q --extra-index-url https://download.pytorch.org/whl/cu128 -r runpod-environment-lock.txt")
 sh("pip install -q scipy bitsandbytes")
