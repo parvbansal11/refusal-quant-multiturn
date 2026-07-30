@@ -1,0 +1,13 @@
+{
+  "tag": "cres_3b_fp16",
+  "model": "meta-llama/Llama-3.2-3B-Instruct",
+  "quant": "fp16",
+  "layer": 20,
+  "attack": "crescendo",
+  "n": 200,
+  "prompts": "advbench_harmful_behaviors.csv",
+  "cold_refusal": 0.715,
+  "incontext_refusal": 0.945,
+  "cold_proj": 7.6925016197562215,
+  "incontext_proj": 6.694777386188507
+}

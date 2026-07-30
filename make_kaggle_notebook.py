@@ -69,14 +69,18 @@ N = 200
 BUDGET_H = 10.5          # stay under Kaggle's GPU session limit
 DEADLINE = T0 + BUDGET_H * 3600
 
-# priority order: the 8B four-way sweep is what the paper rests on
+# Set False for a judge-only session: label the FP16 completions already in the
+# repo and commit, without risking the run on hours of generation.
+GENERATE = True
+
+# priority order: NF4 across families is the quantization null; AWQ deepens 8B
 CHUNKS = [
     ("8b",        ["nf4", "awq", "gptq"]),
     ("3b",        ["nf4"]),
     ("qwen7b",    ["nf4", "awq", "gptq"]),
     ("qwen3b",    ["nf4"]),
     ("mistral7b", ["nf4"]),
-]
+] if GENERATE else []
 
 def left_h():
     return (DEADLINE - time.time()) / 3600
@@ -118,6 +122,12 @@ def causal_layer():
                           map_location="cpu").get("ablation_best_layer")
     except Exception:
         return None
+
+# Judge what is already here before generating anything new. The FP16
+# completions travel with the repo, need no GPU generation, and carry the harm
+# labels the attribution result depends on. Two sessions have now died mid-sweep
+# having judged nothing, so this goes first and its output survives either way.
+sh("python judge_harm.py", timeout=min(4.0, left_h() - 0.5) * 3600)
 
 sh(f"python cosafe_to_scenarios.py --per-category {N//4} --out scenarios.json")
 

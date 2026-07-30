@@ -1,0 +1,13 @@
+{
+  "tag": "cres_qwen7b_fp16",
+  "model": "Qwen/Qwen2.5-7B-Instruct",
+  "quant": "fp16",
+  "layer": 16,
+  "attack": "crescendo",
+  "n": 200,
+  "prompts": "advbench_harmful_behaviors.csv",
+  "cold_refusal": 0.99,
+  "incontext_refusal": 0.675,
+  "cold_proj": 28.906467089653017,
+  "incontext_proj": 20.455474977493285
+}

@@ -1,0 +1,10 @@
+{
+  "tag": "st_qwen7b_fp16",
+  "model": "Qwen/Qwen2.5-7B-Instruct",
+  "quant": "fp16",
+  "layer": 16,
+  "prompts": "advbench_harmful_behaviors.csv",
+  "n": 200,
+  "projection": 28.906467089653017,
+  "refusal": 0.99
+}

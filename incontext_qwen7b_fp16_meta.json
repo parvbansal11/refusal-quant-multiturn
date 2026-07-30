@@ -1,0 +1,13 @@
+{
+  "tag": "qwen7b_fp16",
+  "model_id": "Qwen/Qwen2.5-7B-Instruct",
+  "quant": "fp16",
+  "layer": 16,
+  "layer_source": "bundle.ablation_best_layer",
+  "direction_norm": 0.9999996423721313,
+  "n": 200,
+  "in_context_proj": 12.571029291152954,
+  "in_context_refusal": 0.075,
+  "cold_proj": 11.851485788822174,
+  "cold_refusal": 0.22
+}

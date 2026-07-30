@@ -2,9 +2,9 @@
   "tag": "st_8b_fp16",
   "model": "meta-llama/Meta-Llama-3.1-8B-Instruct",
   "quant": "fp16",
-  "layer": 12,
+  "layer": 10,
   "prompts": "advbench_harmful_behaviors.csv",
-  "n": 100,
-  "projection": 3.3548422396183013,
-  "refusal": 0.95
+  "n": 200,
+  "projection": 2.672201454639435,
+  "refusal": 0.935
 }

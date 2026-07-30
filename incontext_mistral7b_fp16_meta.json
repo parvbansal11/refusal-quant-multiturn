@@ -1,0 +1,13 @@
+{
+  "tag": "mistral7b_fp16",
+  "model_id": "mistralai/Mistral-7B-Instruct-v0.3",
+  "quant": "fp16",
+  "layer": 12,
+  "layer_source": "bundle.ablation_best_layer",
+  "direction_norm": 1.0,
+  "n": 200,
+  "in_context_proj": -0.10205819309223443,
+  "in_context_refusal": 0.2,
+  "cold_proj": -0.18903311556205155,
+  "cold_refusal": 0.145
+}
