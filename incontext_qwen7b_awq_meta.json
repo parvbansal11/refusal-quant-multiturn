@@ -1,0 +1,13 @@
+{
+  "tag": "qwen7b_awq",
+  "model_id": "Qwen/Qwen2.5-7B-Instruct",
+  "quant": "awq",
+  "layer": 16,
+  "layer_source": "bundle.ablation_best_layer",
+  "direction_norm": 0.9999998807907104,
+  "n": 200,
+  "in_context_proj": 12.02938871383667,
+  "in_context_refusal": 0.095,
+  "cold_proj": 11.293157596588134,
+  "cold_refusal": 0.25
+}

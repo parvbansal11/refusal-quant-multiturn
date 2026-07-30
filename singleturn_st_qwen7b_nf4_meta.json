@@ -1,0 +1,10 @@
+{
+  "tag": "st_qwen7b_nf4",
+  "model": "Qwen/Qwen2.5-7B-Instruct",
+  "quant": "nf4",
+  "layer": 16,
+  "prompts": "advbench_harmful_behaviors.csv",
+  "n": 200,
+  "projection": 27.459964418411253,
+  "refusal": 0.94
+}

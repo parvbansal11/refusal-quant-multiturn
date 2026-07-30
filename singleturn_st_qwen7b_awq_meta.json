@@ -1,0 +1,10 @@
+{
+  "tag": "st_qwen7b_awq",
+  "model": "Qwen/Qwen2.5-7B-Instruct",
+  "quant": "awq",
+  "layer": 16,
+  "prompts": "advbench_harmful_behaviors.csv",
+  "n": 200,
+  "projection": 26.56500988483429,
+  "refusal": 0.99
+}
