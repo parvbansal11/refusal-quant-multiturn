@@ -1,0 +1,13 @@
+{
+  "tag": "8b_nf4",
+  "model_id": "meta-llama/Meta-Llama-3.1-8B-Instruct",
+  "quant": "nf4",
+  "layer": 10,
+  "layer_source": "bundle.ablation_best_layer",
+  "direction_norm": 0.9999999403953552,
+  "n": 200,
+  "in_context_proj": 0.25865219555795194,
+  "in_context_refusal": 0.29,
+  "cold_proj": 0.26296856343746183,
+  "cold_refusal": 0.235
+}

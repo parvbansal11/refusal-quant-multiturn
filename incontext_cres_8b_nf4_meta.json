@@ -1,0 +1,13 @@
+{
+  "tag": "cres_8b_nf4",
+  "model": "meta-llama/Meta-Llama-3.1-8B-Instruct",
+  "quant": "nf4",
+  "layer": 10,
+  "attack": "crescendo",
+  "n": 200,
+  "prompts": "advbench_harmful_behaviors.csv",
+  "cold_refusal": 0.95,
+  "incontext_refusal": 0.93,
+  "cold_proj": 2.5327916496992113,
+  "incontext_proj": 1.2882040166854858
+}
