@@ -8,7 +8,7 @@ WORK, REPO = "/kaggle/working", "/kaggle/working/refusal-quant-multiturn"
 # Weights go to scratch, not /kaggle/working: the working directory is the 20GB
 # persisted output quota, and a single 8B checkpoint in fp16 fills most of it.
 CACHE = "/kaggle/temp/hf"
-os.environ["HF_HOME"] = CACHE
+os.environ["HF_HUB_CACHE"] = f"{CACHE}/hub"
 os.environ["HF_HUB_DISABLE_XET"] = "1"
 
 def sh(cmd, cwd=None, timeout=None):
@@ -69,9 +69,11 @@ N = 200
 BUDGET_H = 10.5          # stay under Kaggle's GPU session limit
 DEADLINE = T0 + BUDGET_H * 3600
 
-# Set False for a judge-only session: label the FP16 completions already in the
-# repo and commit, without risking the run on hours of generation.
-GENERATE = True
+# Set False for a judge-only session: label the completions already in the repo
+# and commit, without risking the run on hours of generation. False right now:
+# generation is finished on other hardware, and 5600 judgments is ~3h on a T4,
+# which fits one free session with the whole GPU quota to spare.
+GENERATE = False
 
 # priority order: NF4 across families is the quantization null; AWQ deepens 8B
 CHUNKS = [
@@ -127,7 +129,7 @@ def causal_layer():
 # completions travel with the repo, need no GPU generation, and carry the harm
 # labels the attribution result depends on. Two sessions have now died mid-sweep
 # having judged nothing, so this goes first and its output survives either way.
-sh("python judge_harm.py", timeout=min(4.0, left_h() - 0.5) * 3600)
+sh("python judge_harm.py", timeout=min(8.0, left_h() - 0.5) * 3600)
 
 sh(f"python cosafe_to_scenarios.py --per-category {N//4} --out scenarios.json")
 
