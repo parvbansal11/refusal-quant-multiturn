@@ -11,9 +11,15 @@ CACHE = "/kaggle/temp/hf"
 os.environ["HF_HOME"] = CACHE
 os.environ["HF_HUB_DISABLE_XET"] = "1"
 
-def sh(cmd, cwd=None):
+def sh(cmd, cwd=None, timeout=None):
     print(f"\n### {cmd}", flush=True)
-    return subprocess.run(cmd, shell=True, cwd=cwd or (REPO if os.path.isdir(REPO) else WORK)).returncode
+    try:
+        return subprocess.run(cmd, shell=True, timeout=timeout,
+                              cwd=cwd or (REPO if os.path.isdir(REPO) else WORK)).returncode
+    except subprocess.TimeoutExpired:
+        # A wedged CUDA build can burn the whole session otherwise.
+        print(f"TIMEOUT after {timeout / 60:.0f} min, moving on: {cmd}", flush=True)
+        return 124
 
 # Preflight: without network access nothing below can work, and the run would
 # otherwise emit hundreds of misleading "file not found" errors.
@@ -84,8 +90,16 @@ def step(cmd, out, need_h=0.6):
         print(f"skip (exists): {out}"); return True
     if left_h() < need_h:
         print(f"STOP: {left_h():.1f}h left, need ~{need_h}h for {out}"); return False
-    sh(cmd)
+    sh(cmd, timeout=min(need_h * 3, left_h() - 0.2) * 3600)
     return True
+
+# GPTQ's Marlin kernels need Ampere. On Turing, gptqmodel tries to build them
+# from source, fails on a half2 type mismatch, and retries until the session
+# dies, so drop that precision rather than lose the run to a compiler loop.
+import torch
+CC = torch.cuda.get_device_capability(0) if torch.cuda.is_available() else (0, 0)
+GPTQ_OK = CC[0] >= 8
+print(f"GPU compute capability {CC[0]}.{CC[1]}; GPTQ {'enabled' if GPTQ_OK else 'SKIPPED (needs Ampere)'}")
 
 def purge_cache():
     """Drop downloaded weights between model families. Five families at 4-16GB
@@ -111,6 +125,9 @@ for model, precs in CHUNKS:
     if left_h() < 1.0:
         print(f"\nout of budget ({left_h():.1f}h left), stopping before {model}")
         break
+    precs = [q for q in precs if q != "gptq" or GPTQ_OK]
+    if not precs:
+        print(f"\nnothing runnable for {model} on this GPU"); continue
     print(f"\n{'='*64}\n{model}  precisions={precs}  |  {left_h():.1f}h left\n{'='*64}", flush=True)
 
     purge_cache()
