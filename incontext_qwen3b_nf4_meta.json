@@ -1,0 +1,13 @@
+{
+  "tag": "qwen3b_nf4",
+  "model_id": "Qwen/Qwen2.5-3B-Instruct",
+  "quant": "nf4",
+  "layer": 24,
+  "layer_source": "bundle.ablation_best_layer",
+  "direction_norm": 1.0000001192092896,
+  "n": 200,
+  "in_context_proj": 16.95799905538559,
+  "in_context_refusal": 0.135,
+  "cold_proj": 18.401650266647337,
+  "cold_refusal": 0.33
+}

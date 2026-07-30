@@ -1,0 +1,10 @@
+{
+  "tag": "st_mistral7b_fp16",
+  "model": "mistralai/Mistral-7B-Instruct-v0.3",
+  "quant": "fp16",
+  "layer": 12,
+  "prompts": "advbench_harmful_behaviors.csv",
+  "n": 200,
+  "projection": 1.417136139124632,
+  "refusal": 0.185
+}
