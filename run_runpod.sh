@@ -37,15 +37,17 @@ SKIP_JUDGE=${SKIP_JUDGE:-0}
 DIRN=${DIRN:-256}
 ABLATE=${ABLATE:-}
 
-# Weights belong on the volume. The container's own disk is ~20GB and a single
-# 8B checkpoint in fp16 fills most of it.
-if [ -d /workspace ]; then export HF_HOME=${HF_HOME:-/workspace/hf}; mkdir -p "$HF_HOME"; fi
+# Weights belong on the volume: the container's own disk is ~20GB and a single
+# 8B checkpoint in fp16 fills most of it. Only the hub cache moves, not HF_HOME.
+# Redirecting HF_HOME relocates the login token too, and `hf auth login` writes
+# it under the default home, so the gated repos would 401 an hour in.
+if [ -d /workspace ]; then export HF_HUB_CACHE=${HF_HUB_CACHE:-/workspace/hf/hub}; mkdir -p "$HF_HUB_CACHE"; fi
 export HF_HUB_DISABLE_XET=1
 export TOKENIZERS_PARALLELISM=false
 
 echo "study start $(date)"
-echo "families=$FAMILIES  precisions=$PRECS  n=$N  cache=${HF_HOME:-default}"
-df -h "${HF_HOME:-$HOME}" | tail -1
+echo "families=$FAMILIES  precisions=$PRECS  n=$N  cache=${HF_HUB_CACHE:-default}"
+df -h "${HF_HUB_CACHE:-$HOME}" | tail -1
 
 run () { echo; echo "### $*"; eval "$*" || echo "!! FAILED (continuing): $*"; }
 skip_if () { [ -f "$1" ] && { echo "skip (exists): $1"; return 0; } || return 1; }
@@ -147,7 +149,7 @@ except Exception: print('')
       run "$E dump_completions.py --mode single --n $N --tag st_${TAG}"
   done
 
-  df -h "${HF_HOME:-$HOME}" | tail -1
+  df -h "${HF_HUB_CACHE:-$HOME}" | tail -1
 done
 
 if [ "$SKIP_JUDGE" = "1" ]; then
