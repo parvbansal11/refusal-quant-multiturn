@@ -20,3 +20,6 @@ scenarios.json
 
 # archived original n=100 runs (superseded by n=200; kept for the AAAI submission record)
 !archive_n100/
+
+# ablation sweep keeps a pre-run copy of the shared bundle
+*.prerun

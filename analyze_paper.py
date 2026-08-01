@@ -12,13 +12,18 @@ import os
 from scipy.stats import binomtest, wilcoxon, fisher_exact
 
 FAMILIES = ["3b", "qwen3b", "8b", "qwen7b", "mistral7b"]
-PRECISIONS = ["fp16", "nf4", "awq", "gptq"]
+# fp16cuda is FP16 re-run on the same cards as the quantized arms. The original
+# fp16 arms came off Apple Silicon, so fp16-vs-nf4 varied precision and backend
+# together; fp16cuda is the baseline that holds hardware fixed. Where it exists
+# it is preferred as the comparison baseline, and fp16-vs-fp16cuda then measures
+# the backend effect on its own.
+PRECISIONS = ["fp16", "fp16cuda", "nf4", "awq", "gptq"]
+QUANTIZED = ["nf4", "awq", "gptq"]
 PRETTY = {"3b": "Llama-3.2-3B", "8b": "Llama-3.1-8B", "qwen3b": "Qwen2.5-3B",
           "qwen7b": "Qwen2.5-7B", "mistral7b": "Mistral-7B-v0.3"}
 ATTACKS = [("CoSafe", "incontext_", "judged_mt_"),
-           ("Crescendo", "incontext_cres_", "judged_cres_")]
-# Bonferroni across the twelve precision comparisons in Table 3.
-ALPHA = 0.05 / 12
+           ("Crescendo", "incontext_cres_", "judged_cres_"),
+           ("PAIR", "incontext_pair_", "judged_pair_")]
 
 
 def load(path):
@@ -126,36 +131,76 @@ print(f"  the two orderings disagree; per-configuration the flip occurs "
       f"{flips}/{len(paired)} times (sign test "
       f"p={binomtest(flips, len(paired), 0.5).pvalue:.3f}, underpowered)")
 
+def compare(ic, m, base_q, other_q):
+    """Paired ASR difference between two arms of one model, on shared ids."""
+    base = arms(f"{ic}{m}_{base_q}.csv")
+    other = arms(f"{ic}{m}_{other_q}.csv")
+    if not base or not other:
+        return None
+    ids = sorted(set(base["ids"]) & set(other["ids"]))
+    if not ids:
+        return None
+    bi = dict(zip(base["ids"], base["ctx"]))
+    oi = dict(zip(other["ids"], other["ctx"]))
+    b = [bi[i] for i in ids]
+    o = [oi[i] for i in ids]
+    x, y, p = mcnemar(b, o)
+    # positive means the second arm answers more often than the baseline
+    return dict(n=len(ids), base_asr=100 - pct(b), asr=100 - pct(o),
+                d=pct(b) - pct(o), x=x, y=y, p=p)
+
 section("TABLE 3  Quantization: static attacks vs adaptive ones")
-print(f"{'model':<16} {'attack':<10} {'prec':<5} {'ASR':>7} {'d vs fp16':>10} "
-      f"{'disc':>9} {'p':>9}")
-deltas = {name: [] for name, _, _ in ATTACKS}
+# Collected before printing so the Bonferroni threshold reflects the comparisons
+# actually available, rather than a count hardcoded when the sweep was smaller.
+rowsets = []
 for m in FAMILIES:
     for name, ic, _ in ATTACKS:
-        base = arms(f"{ic}{m}_fp16.csv")
-        if not base:
-            continue
-        print(f"{PRETTY[m]:<16} {name:<10} {'fp16':<5} {100 - pct(base['ctx']):6.1f}%")
-        for q in PRECISIONS[1:]:
-            other = arms(f"{ic}{m}_{q}.csv")
-            if not other:
-                continue
-            ids = sorted(set(base["ids"]) & set(other["ids"]))
-            bi = {i: v for i, v in zip(base["ids"], base["ctx"])}
-            oi = {i: v for i, v in zip(other["ids"], other["ctx"])}
-            b = [bi[i] for i in ids]
-            o = [oi[i] for i in ids]
-            x, y, p = mcnemar(b, o)
-            d = pct(b) - pct(o)          # positive means the quantized arm answers more
-            deltas[name].append(abs(d))
-            mark = "  <-- significant" if p < ALPHA else ""
-            print(f"{'':<16} {'':<10} {q:<5} {100 - pct(o):6.1f}% {d:+9.1f}pp "
-                  f"{x:4d}/{y:<4d} {p:9.5f}{mark}")
+        # hold hardware fixed where the CUDA replication exists
+        base_q = "fp16cuda" if arms(f"{ic}{m}_fp16cuda.csv") else "fp16"
+        for q in QUANTIZED:
+            r = compare(ic, m, base_q, q)
+            if r:
+                rowsets.append((m, name, base_q, q, r))
+ALPHA = 0.05 / max(len(rowsets), 1)
+
+print(f"{'model':<16} {'attack':<10} {'base':<9} {'prec':<5} {'ASR':>7} "
+      f"{'delta':>9} {'disc':>9} {'p':>9}")
+deltas = {name: [] for name, _, _ in ATTACKS}
+seen = set()
+for m, name, base_q, q, r in rowsets:
+    if (m, name) not in seen:
+        seen.add((m, name))
+        print(f"{PRETTY[m]:<16} {name:<10} {base_q:<9} {'':<5} {r['base_asr']:6.1f}%")
+    deltas[name].append(abs(r["d"]))
+    mark = "  <-- significant" if r["p"] < ALPHA else ""
+    print(f"{'':<16} {'':<10} {'':<9} {q:<5} {r['asr']:6.1f}% {r['d']:+8.1f}pp "
+          f"{r['x']:4d}/{r['y']:<4d} {r['p']:9.5f}{mark}")
 print("-" * 100)
 for name, ds in deltas.items():
     if ds:
         print(f"{name:<16} mean |delta ASR| across {len(ds)} comparisons: {sum(ds) / len(ds):.1f}pp")
-print(f"(significance threshold is Bonferroni-corrected: {ALPHA:.5f})")
+print(f"(Bonferroni over {len(rowsets)} comparisons: alpha = {ALPHA:.5f})")
+
+section("TABLE 3b  Backend control: FP16 on Apple Silicon vs FP16 on CUDA")
+# The quantized arms were generated on CUDA and the original FP16 arms on MPS,
+# so a precision comparison across them also crosses a backend. This isolates
+# the backend on its own. Anything the two FP16 arms differ by is a floor under
+# how much of the quantization effect can be attributed to precision.
+back = []
+for m in FAMILIES:
+    for name, ic, _ in ATTACKS:
+        r = compare(ic, m, "fp16", "fp16cuda")
+        if r:
+            back.append(abs(r["d"]))
+            print(f"{PRETTY[m]:<16} {name:<10} n={r['n']:<4d} MPS {r['base_asr']:5.1f}% "
+                  f"CUDA {r['asr']:5.1f}%  {r['d']:+6.1f}pp  {r['x']:3d}/{r['y']:<3d} "
+                  f"p={r['p']:.5f}")
+if back:
+    print(f"\nmean |backend delta| across {len(back)} comparisons: {sum(back)/len(back):.1f}pp")
+else:
+    print("no fp16cuda arms yet. Until they exist, every quantization comparison")
+    print("below Table 3 varies precision and compute backend together, and the")
+    print("two cannot be separated. See make_kaggle_fp16cuda.py.")
 
 section("TABLE 4  Single-turn control")
 print(f"{'model':<16} {'prec':<5} {'refusal':>8} {'ASR':>7} {'harm':>6}")

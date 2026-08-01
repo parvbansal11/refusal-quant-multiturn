@@ -46,6 +46,10 @@ for M in 3b qwen3b 8b qwen7b mistral7b; do
 done
 
 echo; echo "######## harm judging + analysis ########"
+# Llama Guard is another 8B model, and holding it plus a 7B in unified memory
+# is what ends these runs. SKIP_JUDGE=1 leaves the labels to a CUDA session,
+# which also keeps every verdict on one device.
+[ "${SKIP_JUDGE:-0}" = "1" ] && { echo "SKIP_JUDGE=1, leaving harm labels to CUDA"; echo "DONE $(date)"; exit 0; }
 run "$PY judge_harm.py"
 run "$PY analyze_attack_attribution.py"
 run "$PY analyze_refusal_vs_harm.py"
