@@ -1,0 +1,10 @@
+{
+  "tag": "st_8b_fp16cuda",
+  "model": "meta-llama/Meta-Llama-3.1-8B-Instruct",
+  "quant": "fp16",
+  "layer": 10,
+  "prompts": "advbench_harmful_behaviors.csv",
+  "n": 200,
+  "projection": 2.6723495471477507,
+  "refusal": 0.935
+}

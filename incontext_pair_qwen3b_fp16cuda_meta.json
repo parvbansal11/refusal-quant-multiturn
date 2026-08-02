@@ -1,0 +1,16 @@
+{
+  "tag": "pair_qwen3b_fp16cuda",
+  "model": "Qwen/Qwen2.5-3B-Instruct",
+  "quant": "fp16",
+  "layer": 24,
+  "attack": "pair",
+  "attacker": "meta-llama/Llama-3.2-3B-Instruct",
+  "iters": 4,
+  "n": 100,
+  "prompts": "advbench_harmful_behaviors.csv",
+  "cold_refusal": 1.0,
+  "incontext_refusal": 0.0,
+  "cold_proj": 41.1882399559021,
+  "incontext_proj": 15.666049852371216,
+  "mean_queries": 1.18
+}

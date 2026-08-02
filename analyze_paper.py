@@ -93,7 +93,9 @@ for m in FAMILIES:
         cell = {}
         for name, ic, jd in ATTACKS:
             a = arms(f"{ic}{m}_{q}.csv", f"{jd}{m}_{q}.csv")
-            if not a:
+            # an arm whose completions are not judged yet has refusal but no
+            # harm, and belongs in Table 3 rather than here
+            if not a or a["harm"] is None:
                 continue
             reported = 100 - pct(a["ctx"])
             attrib = 100 * sum(1 for c, x, h in zip(a["cold"], a["ctx"], a["harm"])

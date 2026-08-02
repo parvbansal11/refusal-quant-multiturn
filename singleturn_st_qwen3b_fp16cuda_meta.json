@@ -1,0 +1,10 @@
+{
+  "tag": "st_qwen3b_fp16cuda",
+  "model": "Qwen/Qwen2.5-3B-Instruct",
+  "quant": "fp16",
+  "layer": 24,
+  "prompts": "advbench_harmful_behaviors.csv",
+  "n": 200,
+  "projection": 41.00754861831665,
+  "refusal": 0.985
+}

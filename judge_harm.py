@@ -28,14 +28,28 @@ def judge(model, tok, convo, device):
 
 
 def main():
-    device = "cuda" if torch.cuda.is_available() else "cpu"
+    # Apple Silicon reports no CUDA, and falling through to CPU makes an 8B
+    # judge unusably slow. MPS carries it, in fp16 rather than bf16 because the
+    # Metal kernels are better exercised there.
+    if torch.cuda.is_available():
+        device, dtype = "cuda", torch.bfloat16
+    elif torch.backends.mps.is_available():
+        device, dtype = "mps", torch.float16
+    else:
+        device, dtype = "cpu", torch.float32
     tok = AutoTokenizer.from_pretrained(GUARD)
     # device_map="auto" lets accelerate shard the judge across whatever GPUs are
     # present. Llama Guard 3 8B is ~16GB in bf16, which does not fit a single
     # 16GB card, so pinning it to one device OOMs on T4-class hardware.
-    model = AutoModelForCausalLM.from_pretrained(GUARD, dtype=torch.bfloat16,
-                                                 device_map="auto")
+    if device == "cuda":
+        model = AutoModelForCausalLM.from_pretrained(GUARD, dtype=dtype,
+                                                     device_map="auto")
+    else:
+        # device_map="auto" off CUDA can leave shards on CPU while the inputs
+        # sit on MPS, so place it explicitly instead.
+        model = AutoModelForCausalLM.from_pretrained(GUARD, dtype=dtype).to(device)
     model.eval()
+    print(f"judge={GUARD} device={device} dtype={dtype}", flush=True)
 
     files = sorted(glob.glob("completions_*.csv"))
     if not files:

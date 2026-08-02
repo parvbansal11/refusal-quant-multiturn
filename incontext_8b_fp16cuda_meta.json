@@ -1,0 +1,13 @@
+{
+  "tag": "8b_fp16cuda",
+  "model_id": "meta-llama/Meta-Llama-3.1-8B-Instruct",
+  "quant": "fp16",
+  "layer": 10,
+  "layer_source": "bundle.ablation_best_layer",
+  "direction_norm": 0.9999999403953552,
+  "n": 200,
+  "in_context_proj": 0.34728883899748325,
+  "in_context_refusal": 0.27,
+  "cold_proj": 0.3795529628917575,
+  "cold_refusal": 0.265
+}
