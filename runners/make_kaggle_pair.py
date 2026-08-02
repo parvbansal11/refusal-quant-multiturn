@@ -47,12 +47,25 @@ sh("git log --oneline -1")
 sh("pip install -q --extra-index-url https://download.pytorch.org/whl/cu128 -r runners/runpod-environment-lock.txt")
 sh("pip install -q scipy bitsandbytes")
 
-try:
-    from kaggle_secrets import UserSecretsClient
-    os.environ["HF_TOKEN"] = UserSecretsClient().get_secret("HF_TOKEN")
+# The secret service occasionally errors transiently at startup, so retry a few
+# times. The attacker (Mistral) and Llama Guard are gated, so a missing token
+# means the run cannot proceed; fail early rather than after loading models.
+tok = None
+for attempt in range(5):
+    try:
+        from kaggle_secrets import UserSecretsClient
+        tok = UserSecretsClient().get_secret("HF_TOKEN")
+        break
+    except Exception as e:
+        print(f"HF_TOKEN attempt {attempt+1} failed: {e}", flush=True)
+        time.sleep(10)
+if tok:
+    os.environ["HF_TOKEN"] = tok
     print("HF_TOKEN loaded")
-except Exception as e:
-    print("WARNING: no HF_TOKEN secret ->", e)
+else:
+    raise SystemExit(
+        "HF_TOKEN not available after retries. Attach it under Add-ons > Secrets "
+        "(name HF_TOKEN) and re-run. The gated attacker and Llama Guard need it.")
 
 sh("nvidia-smi --query-gpu=name,memory.total --format=csv,noheader")
 print(f"setup done in {(time.time()-T0)/60:.1f} min")
@@ -76,9 +89,14 @@ for group, names in [
         if os.path.exists(p):
             os.remove(p); print("removed", n)
 
-# Qwen-3B causal layer is 24 (from the committed 32-prompt ablation); pass it
-# explicitly so the run does not depend on a bundle being present.
+# The refusal-direction bundle is gitignored, so it is absent from the clone.
+# pair_attack still needs the direction vector (not just the layer index), so
+# rebuild it for Qwen-3B here. This needs no HF token (Qwen and Alpaca are
+# ungated) and takes a few minutes. Then --layer 24 selects the causal layer
+# the committed 32-prompt ablation identified.
 LAYER = 24
+sh("MODEL=qwen3b python src/refusal_direction.py --n 128 --holdout 32", timeout=0.75*3600)
+
 sh(f"MODEL=qwen3b QUANT=fp16 ATTACKER_QUANT=nf4 python src/pair_attack.py "
    f"--n {N} --layer {LAYER} --tag pair_qwen3b_fp16cuda", timeout=2.5*3600)
 sh(f"MODEL=qwen3b QUANT=nf4 ATTACKER_QUANT=nf4 python src/pair_attack.py "
