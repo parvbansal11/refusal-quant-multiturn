@@ -155,9 +155,23 @@ def main():
     model.model.layers[layer].register_forward_hook(_cap_hook)
 
     atok = AutoTokenizer.from_pretrained(ATTACKER_ID)
-    amodel = AutoModelForCausalLM.from_pretrained(
-        ATTACKER_ID, torch_dtype=torch.float16).to(device)
+    # The attacker is held fixed across both target arms, so its own precision
+    # does not confound the target-precision comparison. Loading it in 4-bit lets
+    # a 7B attacker share a 16GB card with the target; ATTACKER_QUANT=nf4 turns
+    # that on. Default fp16 preserves the local single-GPU behaviour.
+    aquant = os.environ.get("ATTACKER_QUANT", "fp16").lower()
+    if aquant == "nf4":
+        from transformers import BitsAndBytesConfig
+        bnb = BitsAndBytesConfig(load_in_4bit=True, bnb_4bit_quant_type="nf4",
+                                 bnb_4bit_compute_dtype=torch.float16,
+                                 bnb_4bit_use_double_quant=True)
+        amodel = AutoModelForCausalLM.from_pretrained(
+            ATTACKER_ID, quantization_config=bnb, device_map={"": device})
+    else:
+        amodel = AutoModelForCausalLM.from_pretrained(
+            ATTACKER_ID, torch_dtype=torch.float16).to(device)
     amodel.eval()
+    print(f"  attacker precision: {aquant}", flush=True)
 
     goals = [r["goal"] for r in csv.DictReader(open(_dp(ADVBENCH)))][:args.n]
 
