@@ -24,3 +24,4 @@ scenarios.json
 # ablation sweep keeps a pre-run copy of the shared bundle
 *.prerun
 judge_new_guard.log
+judge_new_granite.log

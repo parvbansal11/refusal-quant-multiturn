@@ -22,10 +22,12 @@ import sys
 from scipy.stats import wilcoxon
 
 FAMILIES = ["3b", "qwen3b", "8b", "qwen7b", "mistral7b"]
-PRECISIONS = ["fp16", "nf4", "awq", "gptq"]
+PRECISIONS = ["fp16", "fp16cuda", "nf4", "awq", "gptq"]
 PRETTY = {"3b": "Llama-3.2-3B", "8b": "Llama-3.1-8B", "qwen3b": "Qwen2.5-3B",
           "qwen7b": "Qwen2.5-7B", "mistral7b": "Mistral-7B-v0.3"}
-ATTACKS = [("CoSafe", "incontext_", "mt_"), ("Crescendo", "incontext_cres_", "cres_")]
+ATTACKS = [("CoSafe", "incontext_", "mt_"),
+           ("Crescendo", "incontext_cres_", "cres_"),
+           ("PAIR", "incontext_pair_", "pair_")]
 
 
 def load(path):
@@ -137,7 +139,9 @@ def main():
                     att = 100 * sum(1 for c, x, h in zip(cold, ctx, hz)
                                     if c == 1 and x == 0 and h == 1) / nn
                     cell[name] = (rep, att)
-                if len(cell) == 2:
+                # the inversion is a CoSafe-vs-Crescendo claim; a config that
+                # also carries a third attack must not drop out of it
+                if "CoSafe" in cell and "Crescendo" in cell:
                     paired.append(cell)
         if not paired:
             continue

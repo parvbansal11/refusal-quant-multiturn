@@ -108,7 +108,9 @@ for m in FAMILIES:
                   f"{pct(a['harm']):5.1f}% | {attrib:6.1f}% {pre:6.1f}% {none:7.1f}%")
             by_attack[name].append((reported, pct(a["harm"]), attrib))
             cell[name] = (reported, attrib)
-        if len(cell) == 2:
+        # the inversion is a CoSafe-vs-Crescendo claim; a config that also
+        # carries a third attack must not drop out of the comparison
+        if "CoSafe" in cell and "Crescendo" in cell:
             paired.append(cell)
 print("-" * 100)
 for name, vals in by_attack.items():
