@@ -1,36 +1,34 @@
-# envs
+# environments
 venv/
 .venv/
 __pycache__/
 *.pyc
 
-# model artifacts and activations (regenerate via refusal_direction.py + ablation.py)
+# refusal-direction bundles and activations regenerate from src/refusal_direction.py
+bundles/
 *.pt
 *.safetensors
 activations*.npy
 
-# generated conversions
-scenarios.json
+# scenarios.json is derived from CoSafe by src/cosafe_to_scenarios.py
+data/scenarios.json
 
-# os
-.DS_Store
-
-# keep: incontext_*.csv, singleturn_*.csv, advbench_harmful_behaviors.csv,
-# figures (paper/*.pdf), and all .py / .md sources are tracked.
-
-# archived original n=100 runs (superseded by n=200; kept for the AAAI submission record)
-!archive_n100/
-
-# ablation sweep keeps a pre-run copy of the shared bundle
+# run logs
+*.log
 *.prerun
-judge_new_guard.log
-judge_new_granite.log
 
-# tectonic build intermediates
+# LaTeX build intermediates
 paper/main.pdf
 paper/*.aux
 paper/*.bbl
 paper/*.blg
 paper/*.log
 paper/*.out
-paper_current.pdf
+
+# os
+.DS_Store
+
+# Tracked on purpose: everything under data/ except scenarios.json, all of
+# src/, runners/, docs/, paper/*.tex, paper/refs.bib, and the three paper
+# figures. The full completion and harm-label CSVs are committed so that a
+# single analysis script reproduces every number in the paper.

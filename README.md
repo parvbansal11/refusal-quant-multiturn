@@ -1,121 +1,96 @@
-# Does 4-Bit Quantization Change Multi-Turn Jailbreak Robustness?
+# Refusal Is Not Harm
 
-A two-metric evaluation of NF4, AWQ, and GPTQ on Llama-3.2-3B and Llama-3.1-8B.
+**Multi-turn jailbreak benchmarks rank attacks backwards.**
 
-**Author:** Parv Bansal, AIMS-DTU Research Internship 2026
+Parv Bansal · AIMS-DTU · Research Internship 2026
 
-> Private research repository. Contains standard safety benchmark prompts used to
-> measure refusal behaviour. Not for redistribution.
+> Research repository. Contains standard safety-benchmark prompts and model
+> completions used to measure refusal and harm. Not for redistribution.
 
-## Summary
+---
 
-Prior work measured quantization's effect on refusal at a single turn only and
-reported degradation. This study gives the first measurement across a multi-turn
-jailbreak, reading two signals: whether the model refused (substring classifier)
-and whether the response is actually harmful (Llama Guard 3).
+## What this is
 
-Quantization does not degrade safety.
+The project set out to test whether 4-bit quantization weakens a model's
+resistance to multi-turn jailbreaks. It does not. But the standard way the field
+scores these attacks — counting a non-refusal as a success — turned out to be
+measuring the wrong thing, and fixing it produced the actual result:
 
-- **Multi-turn (CoSafe).** Precision changes neither refusal (3B 23% vs 23%,
-  McNemar p=0.62; 8B 27 to 32%, Cochran Q p=0.12) nor harmful-response rate.
-- **Single-turn (AdvBench).** Refusal is flat or higher under quantization for
-  both models and all three methods, no significant comparison.
-- **Positive control.** A safety system prompt cuts 8B multi-turn harm from 6% to
-  0% (p=0.041), so the harm metric can detect a real intervention. The
-  quantization null is a measured absence of effect, not a lack of power.
-- **Evaluation caution.** Refusal-based attack success overstates real harm by an
-  order of magnitude (73% non-refusal versus 6% harmful).
+**The metric ranks two common attacks in the opposite order from the harm they
+cause.** A coreference attack (CoSafe) reports 81.9% success while causing 1.1%
+attributable harm; an escalation attack (Crescendo) reports 20.2% while causing
+6.0%. Across fourteen matched model–precision configurations the reversal in
+attributable harm is +4.9 percentage points, with a bootstrap 95% interval of
+[+1.9, +8.2] that excludes zero under every one of four harm-labelling rules and
+both harm judges.
 
-Full results log: [RESULTS.md](RESULTS.md). Paper: [paper/](paper/).
+Three findings, in order of importance:
+
+1. **Reported success inverts the attack ordering.** 94% of coreference
+   "successes" contain no harmful content; the metric credits attacks for answers
+   the model would have given anyway.
+2. **Multi-turn vulnerability is a model-family property, invisible single-turn.**
+   Qwen2.5 refuses 99% of single-turn harmful prompts but 7.5% under attack;
+   Llama-3.x hardens against escalation; Mistral-7B barely refuses at all.
+3. **Quantization matters only for adaptive attacks** (mean 8.1pp vs 1.6pp for
+   static), because an attack that quotes the model's own output is a different
+   attack against a different model. Separated from a compute-backend confound by
+   a matched FP16 replication (mean 0.5pp).
+
+The full write-up is in [`paper/main.tex`](paper/main.tex).
+
+## Method in one paragraph
+
+Five instruction-tuned models (Llama-3.2-3B, Llama-3.1-8B, Qwen2.5-3B/7B,
+Mistral-7B), four precisions (FP16, NF4, AWQ, GPTQ), two multi-turn attacks plus
+a single-turn control. Every response is scored two ways: a substring refusal
+classifier, and harm by **two independent judges** (Llama Guard 3 8B and Granite
+Guardian 3.1 2B) over all 6,000 completions. The key addition is a **cold
+control** — the same final request with no conversation — which lets reported
+success decompose into *no harm + pre-existing harm + attack-attributable harm*.
+All comparisons are paired within scenario; effect sizes carry bootstrap
+intervals.
 
 ## Repository layout
 
-The repo is flat. Files group by role as follows.
-
-### Paper (`paper/`)
-| File | Purpose |
-| :-- | :-- |
-| `main.tex` | AAAI-27 submission (anonymous, `aaai2027` style) |
-| `quant_multiturn_2col.tex` | Two-column named version |
-| `quant_multiturn.tex` | Single-column named version |
-| `refs.bib`, `abstract.md` | Bibliography and abstract text |
-| `fig_hero.pdf`, `fig_twometric.pdf`, `fig3_coupling.pdf` | Figures used by `main.tex` |
-
-### Analysis (no GPU, reproduces every number in the paper)
-| Script | Output |
-| :-- | :-- |
-| `analyze_multiturn.py` | Multi-turn refusal and projection stats (McNemar, Cochran Q, paired t, AUC) |
-| `analyze_singleturn.py` | Single-turn AdvBench refusal stats |
-| `analyze_harm.py` | Llama Guard harmful-response rates and significance |
-| `analyze_sysprompt.py` | Safety-prompt positive control |
-
-### Figures
-| Script | Purpose |
-| :-- | :-- |
-| `make_hero_figures.py` | Hero and two-metric figures |
-| `make_figures.py` | Multi-turn, cold-vs-in-context, coupling figures |
-| `outline_figures.sh` | Convert figure fonts to outlines (AAAI font compliance) |
-
-### Experiment scripts (GPU / cloud)
-| Script | Purpose |
-| :-- | :-- |
-| `refusal_direction.py` | Extract the refusal direction (Arditi difference-in-means) |
-| `ablation.py` | Confirm the causal layer by ablation (3B layer 20, 8B layer 12) |
-| `cosafe_to_scenarios.py` | Build CoSafe multi-turn scenarios (safe categories) |
-| `cosafe_incontext.py` | Multi-turn measurement (cold vs in-context) |
-| `singleturn_hardened.py` | Single-turn measurement on pinned AdvBench prompts |
-| `dump_completions.py` | Generate model completions for judging |
-| `judge_harm.py` | Score completions with Llama Guard 3 |
-| `run_singleturn_cloud.sh`, `run_judge_cloud.sh`, `run_sysprompt_cloud.sh` | One-shot cloud runners |
-
-### Data
-| Pattern | Contents |
-| :-- | :-- |
-| `incontext_*.csv` | Multi-turn: projection and refusal, cold and in-context |
-| `singleturn_st_*.csv` | Single-turn AdvBench: projection and refusal |
-| `completions_*.csv` | Raw model completions (`st_` single-turn, `mt_` multi-turn) |
-| `judged_*.csv` | Llama Guard harm labels per completion |
-| `advbench_harmful_behaviors.csv` | AdvBench prompt set |
-| `runpod-environment-lock.txt` | Exact package versions used for the cloud runs |
-
-## Setup
-
-```bash
-python3 -m venv venv && source venv/bin/activate
-pip install numpy scipy matplotlib          # analysis and figures only
+```
+data/          all completions and harm labels, grouped by kind
+  completions/   raw model responses           (completions_*.csv)
+  judged/        harm labels, both judges       (judged_*.csv, judged2_*.csv)
+  incontext/     refusal + projection per arm   (incontext_*.csv)
+  singleturn/    single-turn control            (singleturn_*.csv)
+  validation/    stratified human-check sample  (validation_*.csv)
+  advbench_harmful_behaviors.csv                (attack prompts)
+src/           all Python; datadir.py resolves data paths for every script
+  refusal_direction.py, ablation.py            direction + causal layer
+  cosafe_incontext.py, crescendo_attack.py, pair_attack.py, singleturn_*.py
+  judge_harm.py, judge_harm2.py                the two harm judges
+  analyze_paper.py, analyze_agreement.py, analyze_validation.py
+  make_paper_figures.py
+runners/       shell + Kaggle notebooks for cloud sweeps
+paper/         main.tex, refs.bib, figures
+docs/          review brief, results notes, internship summary
+archive/       superseded runs and earlier drafts
 ```
 
-The analysis scripts run on the committed CSVs with no GPU and no model access.
+## Reproduce every number
 
-## Reproduce the results
+The paper's tables and figures regenerate from the committed CSVs with no GPU:
 
 ```bash
-python analyze_multiturn.py     # multi-turn null (3B and 8B)
-python analyze_singleturn.py    # single-turn AdvBench non-replication
-python analyze_harm.py          # Llama Guard harm rates
-python analyze_sysprompt.py     # safety-prompt positive control
-python make_figures.py && python make_hero_figures.py
+python src/analyze_paper.py        # Tables 1–4, the decomposition, the inversion
+python src/analyze_agreement.py granite   # two-judge agreement + robustness table
+python src/analyze_validation.py   # third-judge check on the stratified sample
+python src/make_paper_figures.py   # writes the three figures into paper/
 ```
 
-## Regenerate the data (cloud)
+Regenerating the data itself (needs a GPU; quantized arms need CUDA) is driven by
+the scripts in `runners/`. Paths are resolved through `src/datadir.py`, so scripts
+run from the repository root regardless of where the data lives.
 
-The measurements need CUDA for the quantized models. See
-[CLOUD_RUN.md](CLOUD_RUN.md) for the RunPod setup and the exact commands. Reproduce
-the environment with `pip install -r runpod-environment-lock.txt`.
+## Status
 
-## Models, attacks, and metrics
-
-- **Models.** Llama-3.2-3B-Instruct (FP16, NF4), Llama-3.1-8B-Instruct (FP16,
-  AWQ-INT4, GPTQ-INT4, `hugging-quants` checkpoints).
-- **Attacks.** CoSafe coreference (multi-turn, safe categories), AdvBench
-  (single-turn).
-- **Metrics.** Substring refusal classifier, Llama Guard 3 harmful-response rate,
-  projection onto the refusal direction.
-
-## References
-
-- Arditi et al. Refusal in Language Models Is Mediated by a Single Direction. NeurIPS 2024.
-- Kadadekar. Quality Is Not a Safety Proxy Under Quantization. arXiv:2606.10154, 2026.
-- Yu et al. CoSafe: Evaluating LLM Safety in Multi-Turn Dialogue Coreference. EMNLP 2024.
-- Inan et al. Llama Guard: LLM-based Input-Output Safeguard. arXiv:2312.06674, 2023.
-- Zou et al. Universal and Transferable Adversarial Attacks on Aligned Language Models. arXiv:2307.15043, 2023.
+Data collection is complete across both judges and two compute backends. Open
+items: human validation on the 200-row stratified sample, and a clean re-run of
+the fully-adaptive PAIR attack (a first attempt was dominated by the attacker
+model's own refusals). Both are documented as limitations in the paper.
