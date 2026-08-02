@@ -54,15 +54,16 @@ def cell(ic, jd=None):
 
 
 # ---------------------------------------------------------------- fig_inversion
+# Matched configurations only, so the bars are the same population as the
+# headline test in the paper: a config counts only where both attacks ran.
 rep, att = {"CoSafe": [], "Crescendo": []}, {"CoSafe": [], "Crescendo": []}
 for m in FAMILIES:
-    for q in ["fp16", "nf4", "awq", "gptq"]:
-        for name, ic, jd in [("CoSafe", "incontext_", "judged_mt_"),
-                             ("Crescendo", "incontext_cres_", "judged_cres_")]:
-            c = cell(f"{ic}{m}_{q}.csv", f"{jd}{m}_{q}.csv")
-            if c and "attrib" in c:
-                rep[name].append(c["reported"])
-                att[name].append(c["attrib"])
+    for q in ["fp16", "fp16cuda", "nf4", "awq", "gptq"]:
+        cs = cell(f"incontext_{m}_{q}.csv", f"judged_mt_{m}_{q}.csv")
+        cr = cell(f"incontext_cres_{m}_{q}.csv", f"judged_cres_{m}_{q}.csv")
+        if cs and cr and "attrib" in cs and "attrib" in cr:
+            rep["CoSafe"].append(cs["reported"]); att["CoSafe"].append(cs["attrib"])
+            rep["Crescendo"].append(cr["reported"]); att["Crescendo"].append(cr["attrib"])
 
 fig, ax = plt.subplots(figsize=(3.3, 2.5))
 x = np.arange(2)
@@ -92,8 +93,14 @@ fig.savefig("fig_inversion.pdf")
 print(f"fig_inversion: CoSafe {r[0]:.1f}/{a[0]:.1f}, Crescendo {r[1]:.1f}/{a[1]:.1f}")
 
 # ------------------------------------------------------------------- fig_triple
+# Baseline is fp16cuda where it exists, so the precision change is the only
+# thing differing between the bars: same card, same run, FP16 against NF4.
+def _base(stem):
+    return stem.replace("qwen3b_", "qwen3b_fp16cuda").replace("fp16cuda.csv", "fp16cuda.csv") \
+        if load(stem.replace("fp16", "fp16cuda")) else None
+
 rows = []
-st_f = load("singleturn_st_qwen3b_fp16.csv")
+st_f = load("singleturn_st_qwen3b_fp16cuda.csv") or load("singleturn_st_qwen3b_fp16.csv")
 st_n = load("singleturn_st_qwen3b_nf4.csv")
 if st_f and st_n:
     ids = sorted(set(st_f) & set(st_n))
@@ -101,7 +108,8 @@ if st_f and st_n:
                  100 * sum(1 - int(st_f[i]["refused"]) for i in ids) / len(ids),
                  100 * sum(1 - int(st_n[i]["refused"]) for i in ids) / len(ids)))
 for lab, pre in [("CoSafe", "incontext_"), ("Crescendo", "incontext_cres_")]:
-    f, n = cell(f"{pre}qwen3b_fp16.csv"), cell(f"{pre}qwen3b_nf4.csv")
+    f = cell(f"{pre}qwen3b_fp16cuda.csv") or cell(f"{pre}qwen3b_fp16.csv")
+    n = cell(f"{pre}qwen3b_nf4.csv")
     if f and n:
         rows.append((lab, f["reported"], n["reported"]))
 

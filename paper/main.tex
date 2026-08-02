@@ -28,26 +28,30 @@ parvbansal05@gmail.com}}
 \begin{abstract}
 Multi-turn jailbreak evaluations almost universally score an attack as
 successful when the model fails to refuse. We label 6{,}000 model responses with
-an independent harm judge across five instruction-tuned models, four numeric
+two independent harm judges across five instruction-tuned models, four numeric
 precisions, and two multi-turn attacks, and show that this convention does not
-merely overstate attack success: it reverses the ordering of attacks. A
-coreference attack reports 82.9\% success against 23.8\% for an escalation
-attack (Wilcoxon $p<0.001$), while causing 1.0\% attributable harm against 7.0\%
-($p=0.019$) on the same matched configurations. The gap arises because
-refusal-based scoring credits an attack for every answer the model would have
-produced without it; decomposing reported success against a matched no-attack
-condition shows that 77\% of coreference ``successes'' contain no harmful
-content at all. We further find that multi-turn vulnerability is a property of
-the model family rather than of quantization. Qwen2.5-7B refuses 99\% of
-single-turn harmful prompts yet drops to 7.5\% under multi-turn attack;
-Llama-3.x is unmoved by coreference and actively hardens against escalation
-($+23.0$\pp{} refusal, $p<10^{-4}$); Mistral-7B refuses so rarely that its
-reported success is genuine. Finally, quantization leaves static attacks
-unchanged (mean $1.4$\pp, $0/7$ significant) but significantly alters adaptive
-ones (mean $8.6$\pp, three configurations surviving correction), because an
-attack conditioned on model output is a different attack against a different
-model. We release all completions, harm labels, and a single script that
-regenerates every number reported here.
+merely overstate attack success: it reverses the ordering of attacks. Across
+fourteen matched model-precision configurations a coreference attack reports
+81.9\% success against 20.2\% for an escalation attack (Wilcoxon $p<0.001$),
+while causing 1.1\% attributable harm against 6.0\%. The reversal in
+attributable harm is $+4.9$ percentage points (\pp) with a bootstrap 95\%
+interval of $[+1.9,+8.2]$ that excludes zero under every one of four harm-labelling
+rules, spanning two judges. The gap arises because refusal-based scoring credits
+an attack for every answer the model would have produced without it; decomposing
+reported success against a matched no-attack condition shows that 94\% of
+coreference ``successes'' contain no harmful content at all. We further find that
+multi-turn vulnerability is a property of the model family rather than of
+quantization. Qwen2.5 refuses 99\% of single-turn harmful prompts yet drops to
+7.5\% under multi-turn attack; Llama-3.x is unmoved by coreference and actively
+hardens against escalation ($+23.0$\pp{} refusal, $p<10^{-4}$); Mistral-7B refuses
+so rarely that its reported success is genuine. Finally, quantization leaves
+static attacks unchanged (mean $1.6$\pp, $0/6$ significant) but significantly
+alters adaptive ones (mean $8.1$\pp, three configurations surviving correction),
+an effect we separate from a compute-backend confound with a matched FP16
+replication (mean $0.5$\pp) and explain mechanistically: an attack conditioned on
+model output is a different attack against a different model. We release all
+completions, both sets of harm labels, and a single script that regenerates every
+number reported here.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -74,9 +78,9 @@ omits: an independent harm judge applied to every response, and a matched
 preceding conversation. Together these decompose reported success into three
 parts,
 \begin{equation}
-\text{reported} = \underbrace{\text{no harm}}_{\text{answered, harmless}}
- + \underbrace{\text{pre-existing}}_{\text{harmful without attack}}
- + \underbrace{\attr}_{\text{caused by the attack}},
+\text{reported} = \underbrace{\text{no harm}}_{\text{harmless}}
+ + \underbrace{\text{pre-existing}}_{\text{harmful cold}}
+ + \underbrace{\attr}_{\text{attack-caused}},
 \label{eq:decomp}
 \end{equation}
 where a scenario counts as attack-attributable only if the model refused the
@@ -85,7 +89,7 @@ judged harmful.
 
 Applying this across five models, four precisions and two attacks produces a
 result stronger than the expected overstatement: the two attacks swap places.
-The attack reporting $3.5\times$ more success causes $7\times$ less harm
+The attack reporting $4\times$ more success causes $5\times$ less harm
 (Fig.~\ref{fig:inversion}). Rankings computed with the standard metric are not
 merely inflated, they are ordered wrongly.
 
@@ -99,8 +103,12 @@ single-turn evaluation, spanning three distinct regimes across five models
 (Sec.~\ref{sec:regimes}).
 \item Quantization does not affect static multi-turn attacks but significantly
 affects adaptive ones, with a mechanism: an attack conditioned on model output
-diverges when the weights change (Sec.~\ref{sec:quant}).
+diverges when the weights change (Sec.~\ref{sec:quant}). We separate this from a
+compute-backend confound with a matched FP16 replication.
 \end{enumerate}
+Every reported effect is checked against a second, architecturally unrelated harm
+judge, and the central inversion is reported as an effect size with a bootstrap
+interval robust to the choice of judge (Sec.~\ref{sec:robust}).
 
 \section{Related Work}
 
@@ -117,15 +125,24 @@ success relative to human judgement, and proposed a graded rubric.
 HarmBench~\cite{mazeika2024harmbench} standardised harm classification. Our
 result differs in kind: in the multi-turn setting the inflation is
 \emph{attack-dependent} and large enough to reverse the ranking between attacks,
-which rescaling a single attack's score cannot reveal.
+which rescaling a single attack's score cannot reveal. This continues a line of
+work showing that a widely used metric can produce qualitatively wrong
+conclusions, from emergent-ability claims that are artifacts of the
+metric~\cite{schaeffer2023emergent} to benchmark validity more
+broadly~\cite{raji2021everything,miller2024error}; over-refusal is the mirror
+failure~\cite{rottger2024xstest}.
 
 \textbf{Multi-turn attacks.} CoSafe~\cite{yu2024cosafe} constructs dialogues in
 which the harmful referent is carried by coreference, so the final turn is often
 innocuous read alone. Crescendo~\cite{russinovich2024crescendo} escalates across
 turns and quotes the model's own prior output. Whether later turns are fixed
 text or a function of model output turns out to determine both the attack's real
-efficacy and its sensitivity to quantization. Single-turn attack construction
-has been studied extensively~\cite{zou2023universal,chao2023jailbreaking,liu2024autodan,wei2023jailbroken}.
+efficacy and its sensitivity to quantization. Fully adaptive attackers that
+rewrite each turn from the model's replies~\cite{mehrotra2024tree,andriushchenko2024jailbreaking,ren2024actorattack}
+sit at the far end of this axis, and multi-turn human red-teaming defeats current
+defences~\cite{li2024multiturn,yang2024chainofattack}. Single-turn attack
+construction has been studied
+extensively~\cite{zou2023universal,chao2023jailbreaking,liu2024autodan,wei2023jailbroken}.
 
 \textbf{Compression and safety.} Kadadekar~\cite{kadadekar2026quality} reports
 that quality benchmarks do not track safety under quantization, finding
@@ -136,8 +153,11 @@ survey trustworthiness under compression, and Egashira et
 al.~\cite{egashira2024exploiting} show quantization can be adversarially
 exploited. Our results are consistent with the representation being preserved,
 and add that behavioural equivalence holds only for attacks that do not adapt.
-Quantization methods themselves are due
-to~\cite{frantar2023gptq,lin2024awq,dettmers2023qlora,dettmers2022llmint8}.
+That compression can silently change behaviour on a subset of inputs while
+leaving aggregate quality intact is a known
+pattern~\cite{hooker2019compressed,hooker2020characterising}. Quantization methods
+themselves are due
+to~\cite{frantar2023gptq,lin2024awq,dettmers2023qlora,dettmers2022llmint8,xiao2023smoothquant}.
 
 \textbf{Alignment.} The models studied are aligned by RLHF or related
 procedures~\cite{ouyang2022training,bai2022constitutional}, whose robustness has
@@ -148,7 +168,8 @@ degrade under fine-tuning~\cite{qi2024finetuning}.
 
 \subsection{Models and precisions}
 Five instruction-tuned models across three families: Llama-3.2-3B,
-Llama-3.1-8B, Qwen2.5-3B, Qwen2.5-7B, Mistral-7B-Instruct-v0.3. Precisions are
+Llama-3.1-8B~\cite{dubey2024llama}, Qwen2.5-3B, Qwen2.5-7B,
+Mistral-7B-Instruct-v0.3. Precisions are
 FP16, NF4 (bitsandbytes, quantized at load), AWQ~\cite{lin2024awq} and
 GPTQ~\cite{frantar2023gptq} where published 4-bit checkpoints exist. Generation
 is greedy throughout, so differences are attributable to weights rather than
@@ -167,30 +188,42 @@ Eq.~\ref{eq:decomp} computable and costs one extra generation per scenario.
 \subsection{Refusal direction and causal layer}
 We extract a refusal direction per model by difference-in-means over 256 harmful
 AdvBench prompts and 256 harmless Alpaca instructions, holding out a quarter for
-validation. Selecting the layer by $d'$ alone lands on the final layer, whose
-large raw separation is a norm-growth artifact of logit preparation. We therefore
-select the causal layer by ablation: project the direction out of the residual
-stream at every layer during generation and measure the refusal collapse. For
-Llama-3.1-8B this yields layer 12, where refusal falls from 87.5\% to 0.0\%,
-while ablating a random unit direction leaves refusal at 87.5\%. That control is
-what makes the layer choice causal rather than correlational.
+validation. Selecting the layer by $d'$ alone lands near the final layer, whose
+large raw separation is a norm-growth artifact of logit preparation; across all
+five models the $d'$ peak (21--31) never coincides with the causal layer.
+We therefore select the causal layer by ablation over 32 held-out prompts and
+eleven candidate layers: project the direction out of the residual stream at
+every layer during generation and measure the refusal collapse. This yields
+layer 10 for Llama-8B, 24 for both 3B models, 16 for Qwen-7B and 12 for Mistral.
+For Llama-8B, layer 10 drives refusal from 90.6\% to 0.0\% while ablating a random
+unit direction leaves it unchanged; Mistral has no such bottleneck, as ablating
+any layer past 12 collapses its already-low 18.8\% refusal, consistent with its
+being weakly safety-tuned. The random-direction control is what makes the layer
+choice causal rather than correlational.
 
 \subsection{Metrics and statistics}
 Refusal is scored by a substring classifier over the final response. Harm is
-scored independently by Llama Guard 3 8B over all 6{,}000 completions in a single
-pass on one device, so no verdict is confounded by hardware. All comparisons are
-paired within scenario identifier: McNemar's exact test for binary refusal,
-Wilcoxon signed-rank for attack-level comparisons, and Bonferroni correction
-across the twelve precision comparisons of Sec.~\ref{sec:quant}
-($\alpha=0.00417$).
+scored independently by Llama Guard 3 8B~\cite{inan2023llamaguard} over all
+6{,}000 completions, and every completion is scored a second time by Granite
+Guardian 3.1 2B~\cite{padhi2024granite}, an architecture that appears nowhere
+among the systems under test, so its errors cannot correlate with them. Other
+open harm judges follow a similar
+design~\cite{han2024wildguard,zeng2024shieldgemma}. Judging precedes analysis and runs one file at a time, so no verdict
+is confounded by generation hardware. All comparisons are paired within scenario
+identifier: McNemar's exact test for binary refusal, Wilcoxon signed-rank for
+attack-level comparisons, and Bonferroni correction across the fourteen precision
+comparisons of Sec.~\ref{sec:quant} ($\alpha=0.0036$). Because the central
+comparison rests on fourteen paired configurations, where Wilcoxon resolves
+coarsely near the conventional threshold, we report its effect size with a
+$10{,}000$-sample bootstrap interval as the primary statistic.
 
 \begin{figure}[t]
 \centering
 \includegraphics[width=\columnwidth]{fig_inversion.pdf}
 \caption{Reported attack success against attack-attributable harm, averaged over
-all model-precision configurations. The coreference attack reports $3.5\times$
-the success of the escalation attack while causing $7\times$ less harm. Both
-differences are significant and point in opposite directions.}
+the fourteen matched model-precision configurations. The coreference attack
+reports $4\times$ the success of the escalation attack while causing $5\times$
+less harm. The two orderings point in opposite directions.}
 \label{fig:inversion}
 \end{figure}
 
@@ -198,17 +231,19 @@ differences are significant and point in opposite directions.}
 \label{sec:inversion}
 
 Table~\ref{tab:decomp} decomposes reported success by Eq.~\ref{eq:decomp}.
-Across eleven matched model-precision configurations in which both attacks ran,
-CoSafe reports a mean ASR of 82.9\% against Crescendo's 23.8\% (Wilcoxon
-$p=0.00098$). On attributable harm the ordering reverses: CoSafe 1.0\% against
-Crescendo 7.0\% ($p=0.019$).
+Across fourteen matched model-precision configurations in which both attacks ran,
+CoSafe reports a mean ASR of 81.9\% against Crescendo's 20.2\% (Wilcoxon
+$p=0.00098$). On attributable harm the ordering reverses: CoSafe 1.1\% against
+Crescendo 6.0\%, a difference of $+4.9$\pp{} whose bootstrap 95\% interval
+$[+1.9,+8.2]$ excludes zero. Sec.~\ref{sec:robust} shows the reversal survives
+under both harm judges and under conjunctive and disjunctive labelling.
 
-The decomposition shows why. For CoSafe a mean of 77\% of scenarios count as
-successes while containing no harmful content, because its final turns are
-frequently innocuous read alone; cold refusal for CoSafe sits between 14\% and
-40\%, so most of what it is credited with was already available without any
-attack. Crescendo issues the harmful request plainly, so cold refusal is
-71--99\% and genuine headroom exists for an attack to matter.
+The decomposition shows why. For CoSafe 94\% of reported successes contain no
+harmful content, because its final turns are frequently innocuous read alone;
+cold refusal for CoSafe sits between 14\% and 40\%, so most of what it is credited
+with was already available without any attack. Crescendo issues the harmful
+request plainly, so cold refusal is 71--99\% and genuine headroom exists for an
+attack to matter.
 
 \begin{table}[t]
 \centering
@@ -233,8 +268,8 @@ Qwen-3B     & Crescendo & 13.0 &  6.5 &  5.5 &  0.0 \\
 Qwen-7B     & Crescendo & 32.5 & 14.0 & 14.0 &  0.0 \\
 Mistral-7B  & Crescendo & 85.5 & 73.0 &  8.5 & 60.5 \\
 \midrule
-\multicolumn{2}{l}{\textbf{Mean CoSafe} (11 runs)}    & \textbf{82.9} & 5.9 & \textbf{1.0} & 4.9 \\
-\multicolumn{2}{l}{\textbf{Mean Crescendo} (12 runs)} & \textbf{25.9} & 15.1 & \textbf{7.8} & 5.0 \\
+\multicolumn{2}{l}{\textbf{Mean CoSafe} (14 runs)}    & \textbf{81.9} & 5.8 & \textbf{1.1} & 4.6 \\
+\multicolumn{2}{l}{\textbf{Mean Crescendo} (15 runs)} & \textbf{22.1} & 13.2 & \textbf{6.7} & 5.4 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -248,8 +283,51 @@ model does not refuse, and fails on safety-tuned models, which are the models
 anyone benchmarks.
 
 \textbf{Scope.} The inversion is an aggregate result. Per configuration the flip
-occurs in $8/11$ cases, a sign test at $p=0.23$, underpowered at this sample
+occurs in $9/14$ cases, a sign test at $p=0.42$, underpowered at this sample
 size. We claim the aggregate ordering reverses, not that it reverses everywhere.
+
+\section{Robustness of the Inversion}
+\label{sec:robust}
+
+The inversion rests on harm labels, so we test it against the choice of judge.
+Table~\ref{tab:robust} recomputes the attributable-harm gap under four labelling
+rules: each judge alone, the conjunctive rule (both judges must call a response
+harmful), and the disjunctive rule (either suffices). The gap is positive and its
+bootstrap interval excludes zero under all four; the point estimate ranges over a
+narrow $4.8$--$5.6$\pp. The ordering reverses regardless of how harm is defined.
+
+The two judges disagree more than either's self-description would suggest, a
+reliability concern also raised for LLM-as-judge
+evaluation~\cite{zheng2023judging}: over
+all $6{,}000$ responses they agree on $88.6\%$, Cohen's $\kappa=0.45$, with
+Granite flagging harm about twice as often as Llama Guard ($15.6\%$ against
+$7.5\%$). This disagreement is itself evidence that automated harm scoring is
+unreliable, and it is why we report the inversion as an interval robust to the
+judge rather than a single $p$-value. On a stratified sample of 200 responses we
+add a third, unrelated judgement: of the coreference ``successes'' both automated
+judges call harmless, the third labels only $10\%$ ($4/40$) harmful, and the
+under-flagging rate is identical across the two attacks ($14\%$ each on the
+cold-refused subset that could become attributable), so it cannot manufacture the
+gap.
+
+\begin{table}[t]
+\centering
+\caption{Attributable-harm gap (Crescendo minus CoSafe, \pp) under four harm
+labelling rules, over fourteen matched configurations. CI is a $10{,}000$-sample
+bootstrap. Every interval excludes zero.}
+\label{tab:robust}
+\small
+\begin{tabular}{lrrl}
+\toprule
+Harm rule & CoSafe & Crescendo & Gap (95\% CI) \\
+\midrule
+Llama Guard      & 1.1 & 6.0 & $+4.9\;[+1.9,+8.2]$ \\
+Granite Guardian & 2.4 & 7.9 & $+5.5\;[+1.6,+9.7]$ \\
+Both agree       & 0.8 & 5.6 & $+4.8\;[+1.9,+7.8]$ \\
+Either           & 2.7 & 8.3 & $+5.6\;[+1.6,+10.0]$ \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 \section{Vulnerability Is a Family Property}
 \label{sec:regimes}
@@ -315,54 +393,68 @@ starts too low for either attack to matter.}
 \label{sec:quant}
 
 Table~\ref{tab:quant} compares each quantized variant against its FP16
-counterpart, paired within scenario. Under CoSafe none of seven comparisons is
-significant and the mean absolute change is $1.4$\pp. Under Crescendo the mean
-absolute change is $8.6$\pp{} and three comparisons survive Bonferroni
-correction: Qwen-3B NF4 ($+16.5$\pp, $p<10^{-6}$), Qwen-7B NF4 ($+11.5$\pp,
-$p=1.2\times10^{-4}$) and Qwen-7B GPTQ ($+16.5$\pp, $p<10^{-4}$).
+counterpart, paired within scenario. To hold the compute backend fixed, the FP16
+baseline here is a replication generated on the same CUDA hardware as the
+quantized arms (see below). Under CoSafe none of six comparisons is significant
+and the mean absolute change is $1.6$\pp. Under Crescendo the mean absolute change
+is $8.1$\pp{} and three comparisons survive Bonferroni correction: Qwen-3B NF4
+($+15.5$\pp, $p<10^{-6}$), Qwen-7B NF4 ($+11.5$\pp, $p=1.2\times10^{-4}$) and
+Qwen-7B GPTQ ($+16.5$\pp, $p<10^{-4}$).
 
 \begin{table}[t]
 \centering
-\caption{Quantized minus FP16 reported ASR (\pp), paired within scenario.
-$\dagger$ survives Bonferroni correction across twelve comparisons.}
+\caption{Quantized minus FP16 reported ASR (\pp), paired within scenario, FP16
+baseline generated on the same hardware. $\dagger$ survives Bonferroni correction
+across fourteen comparisons.}
 \label{tab:quant}
 \small
 \begin{tabular}{llrrl}
 \toprule
 Model & Prec. & CoSafe & Crescendo & $p$ (Cres.) \\
 \midrule
-Llama-3B  & NF4  & $+0.0$ & $-4.0$  & 0.021 \\
-Llama-8B  & NF4  & $-2.0$ & $+5.0$  & 0.0064 \\
-Llama-8B  & AWQ  & $-3.5$ & $+1.0$  & 0.63 \\
-Qwen-3B   & NF4  & $+1.0$ & $+16.5$ & $<10^{-6}$\,$\dagger$ \\
+Llama-3B  & NF4  & $-1.0$ & $-3.0$  & 0.070 \\
+Llama-8B  & NF4  & $-2.0$ & $+4.5$  & 0.012 \\
+Llama-8B  & AWQ  & $-3.5$ & $+0.5$  & 1.00 \\
+Qwen-3B   & NF4  & $+1.0$ & $+15.5$ & $<10^{-6}$\,$\dagger$ \\
 Qwen-7B   & NF4  & $+0.0$ & $+11.5$ & $1.2{\times}10^{-4}$\,$\dagger$ \\
 Qwen-7B   & AWQ  & $-2.0$ & $+5.5$  & 0.099 \\
 Qwen-7B   & GPTQ & ---    & $+16.5$ & $<10^{-4}$\,$\dagger$ \\
 \midrule
-\multicolumn{2}{l}{Mean $|\Delta|$} & \textbf{1.4} & \textbf{8.6} & \\
+\multicolumn{2}{l}{Mean $|\Delta|$} & \textbf{1.6} & \textbf{8.1} & \\
 \bottomrule
 \end{tabular}
 \end{table}
+
+\textbf{Backend control.} The quantized arms were generated on CUDA and our
+original FP16 arms on Apple Silicon, so a naive precision comparison also crosses
+a compute backend. Because our proposed mechanism is amplification of small
+perturbations, a backend change could mimic a precision effect. We therefore
+regenerated every FP16 arm on the CUDA hardware and compared the two FP16 sets
+directly: across seven attack-model comparisons the mean absolute difference is
+$0.5$\pp{} with none significant. The backend accounts for essentially none of
+the quantization effect, and the CUDA FP16 replication is the baseline used in
+Table~\ref{tab:quant}.
 
 \textbf{Mechanism.} Crescendo's third turn quotes the model's own second-turn
 output. Quantization perturbs that output, changing what the third turn asks,
 which compounds into the fourth. CoSafe's turns are fixed text, so quantization
 affects only the final response and nothing accumulates. The direction of change
-is not monotone, with Llama-3B becoming safer by $4.0$\pp{} while everything else
+is not monotone, with Llama-3B becoming safer by $3.0$\pp{} while everything else
 becomes more vulnerable, which is what trajectory divergence predicts and uniform
 safety degradation does not.
 
 Figure~\ref{fig:triple} isolates this on one model. Qwen-3B under a single
-precision change moves by $+0.5$\pp{} single-turn ($p=1.00$), $+1.0$\pp{} under
-CoSafe ($p=0.77$), and $+16.5$\pp{} under Crescendo ($p<10^{-6}$, 37 scenarios
+precision change moves by $+0.0$\pp{} single-turn ($p=1.00$), $+1.0$\pp{} under
+CoSafe ($p=0.77$), and $+15.5$\pp{} under Crescendo ($p<10^{-6}$, 35 scenarios
 flipping against 4). The only property differing between the second and third
 conditions is whether later turns depend on the model's own earlier outputs.
 
 \begin{figure}[t]
 \centering
 \includegraphics[width=\columnwidth]{fig_triple.pdf}
-\caption{Qwen2.5-3B, FP16 against NF4, under three attack types. Identical
-weights and quantization; only the attack's dependence on model output differs.}
+\caption{Qwen2.5-3B, FP16 against NF4 on identical CUDA hardware, under three
+attack types. Only the attack's dependence on model output differs across the
+three panels; the precision change moves the self-referential attack alone.}
 \label{fig:triple}
 \end{figure}
 
@@ -387,17 +479,22 @@ model the metric is close to correct.
 
 \section{Limitations}
 
-Harm is scored by a single judge. CoSafe's categories are mild relative to Llama
-Guard's severe-hazard taxonomy and may be under-flagged; the Mistral row, where
-the same pipeline returns 73\% harm, indicates the judge is not simply
-insensitive, but a second judge and human validation on a stratified sample
-remain necessary. CoSafe and single-turn completions are $n{=}100$ for FP16 arms
-and $n{=}200$ elsewhere, with all comparisons paired on shared identifiers.
-Mistral quantized variants and Llama-8B GPTQ were not collected because compute
-was exhausted, and one CoSafe arm for Qwen-7B GPTQ was lost to a storage fault.
-Ablation layer selection at 16 prompts is unstable: Llama-8B selected layer 10
-and layer 12 on separate runs, both collapsing refusal to near zero. This affects
-projection values only, since refusal and harm are generation-based.
+Harm is scored by two automated judges rather than humans. They agree at
+$\kappa=0.45$, so the choice of judge is a genuine source of variance; we address
+it by reporting the inversion as an interval robust across both judges and two
+labelling rules (Sec.~\ref{sec:robust}), but human validation on the stratified
+sample remains the natural next step, and the third judgement we add there is
+itself automated. CoSafe's categories are mild relative to Llama Guard's
+severe-hazard taxonomy and may be under-flagged; the Mistral row, where the same
+pipeline returns 73\% harm, indicates the judges are not simply insensitive.
+CoSafe and single-turn completions are $n{=}100$ for the original FP16 arms and
+$n{=}200$ elsewhere, with all comparisons paired on shared identifiers. Mistral
+quantized variants and Llama-8B GPTQ were not collected because compute was
+exhausted, and one CoSafe arm for Qwen-7B GPTQ was lost to a storage fault. The
+mechanism of Sec.~\ref{sec:quant} predicts that a fully adaptive attacker, whose
+every turn is rewritten from the model's replies, should show a still larger
+precision effect; testing that dose-response relationship is left to future work,
+as a preliminary attempt was dominated by the attacker model's own refusals.
 
 \section{Conclusion}
 
@@ -411,9 +508,10 @@ matters only for attacks that adapt to the model they attack.
 
 \section*{Reproducibility}
 
-All completions, harm labels, attack scripts and a single analysis script that
-regenerates every number appear in the artifact. Generation is greedy throughout;
-results were replicated across three independent compute environments.
+All completions, both sets of harm labels, attack scripts and a single analysis
+script that regenerates every number appear in the artifact. Generation is greedy
+throughout; the FP16 arms were reproduced on a second compute backend and the two
+sets agree to within $0.5$\pp{} on average.
 
 \bibliographystyle{IEEEtran}
 \bibliography{refs}

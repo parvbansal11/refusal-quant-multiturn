@@ -25,3 +25,12 @@ scenarios.json
 *.prerun
 judge_new_guard.log
 judge_new_granite.log
+
+# tectonic build intermediates
+paper/main.pdf
+paper/*.aux
+paper/*.bbl
+paper/*.blg
+paper/*.log
+paper/*.out
+paper_current.pdf
