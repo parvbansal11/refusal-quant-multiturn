@@ -22,7 +22,13 @@ PAPER = os.path.join(ROOT, "paper")
 
 
 def bundle(name):
-    """Absolute path to a refusal-direction .pt, which live outside data/."""
+    """Absolute path to a refusal-direction .pt, which live outside data/.
+
+    bundles/ is gitignored, so a fresh clone does not contain it; create it here
+    so a first write (refusal_direction.py, ablation.py) does not fail on a
+    missing parent directory.
+    """
+    os.makedirs(BUNDLES, exist_ok=True)
     return name if os.path.isabs(name) else os.path.join(BUNDLES, os.path.basename(name))
 
 # prefix -> subdirectory. Order matters: judged2_ must be tested before judged_,

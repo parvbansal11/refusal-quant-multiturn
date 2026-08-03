@@ -75,6 +75,8 @@ run = r'''# Re-run PAIR on Qwen2.5-3B, FP16 and NF4, corrected attacker.
 N = 100
 os.environ["ATTACKER_QUANT"] = "nf4"   # 4-bit Mistral attacker fits beside the target on one T4
 
+os.makedirs(os.path.join(REPO, "bundles"), exist_ok=True)  # gitignored, absent in a fresh clone
+
 # The stale PAIR files are committed; remove them so the corrected run is not
 # skipped and the old labels are not reused.
 for group, names in [
