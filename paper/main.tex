@@ -1,27 +1,55 @@
-% Two-column, venue-neutral. Compiles on Overleaf with pdfLaTeX as-is.
-% To retarget a venue, change only \documentclass and \bibliographystyle;
-% nothing in the body depends on IEEEtran.
-\documentclass[conference]{IEEEtran}
+% Two-column, Times, ACL/NeurIPS-style. Compiles with pdfLaTeX or tectonic.
+\documentclass[10pt,twocolumn]{article}
 
-\usepackage{cite}
-\usepackage{amsmath,amssymb}
+\usepackage[letterpaper,margin=1in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath}
+\usepackage{newtxtext,newtxmath}     % Times text and math (provides amssymb glyphs)
 \usepackage{graphicx}
 \usepackage{booktabs}
-\usepackage{xcolor}
-\usepackage[hyphens]{url}
+\usepackage{microtype}
+\usepackage{titlesec}
+\usepackage[round]{natbib}
 \usepackage[hidelinks]{hyperref}
+\usepackage{url}
+
+\setlength{\columnsep}{0.28in}
+
+% section headings: bold, sized like ACL
+\titleformat{\section}{\normalfont\large\bfseries}{\thesection}{0.6em}{}
+\titleformat{\subsection}{\normalfont\normalsize\bfseries}{\thesubsection}{0.6em}{}
+\titlespacing*{\section}{0pt}{2.2ex plus 1ex minus .2ex}{1ex plus .2ex}
+\titlespacing*{\subsection}{0pt}{1.6ex plus 1ex minus .2ex}{0.6ex plus .2ex}
 
 \newcommand{\attr}{\textsc{attr}}
 \newcommand{\pp}{\,pp}
 
+% bold, centered title block
+\makeatletter
+\renewcommand{\maketitle}{%
+  \twocolumn[%
+    \begin{@twocolumnfalse}
+      \begin{center}
+        {\LARGE\bfseries \@title \par}
+        \vskip 1.2em
+        {\large \@author \par}
+        \vskip 1.4em
+      \end{center}
+    \end{@twocolumnfalse}%
+  ]%
+}
+\makeatother
+
+\title{Refusal Is Not Harm: Multi-Turn Jailbreak\\Benchmarks Rank Attacks Backwards}
+
+\author{%
+  \textbf{Parv Bansal} \quad \textbf{Vivaan Jain} \quad
+  \textbf{Vanshika Dhiman} \quad \textbf{Dinesh Kumar Vishwakarma}\\[0.4em]
+  Artificial Intelligence and Machine Learning Society (AIMS)\\
+  Delhi Technological University%
+}
+
 \begin{document}
-
-\title{Refusal Is Not Harm: Multi-Turn Jailbreak Benchmarks\\Rank Attacks Backwards}
-
-\author{\IEEEauthorblockN{Parv Bansal}
-\IEEEauthorblockA{\textit{AIMS-DTU} \\
-Delhi Technological University \\
-parvbansal05@gmail.com}}
 
 \maketitle
 
@@ -55,11 +83,6 @@ model output is a different attack against a different model. We release all
 completions, both sets of harm labels, and a single script that regenerates every
 number reported here.
 \end{abstract}
-
-\begin{IEEEkeywords}
-language model safety, jailbreak evaluation, multi-turn attacks, quantization,
-measurement validity
-\end{IEEEkeywords}
 
 \section{Introduction}
 
@@ -114,66 +137,65 @@ interval robust to the choice of judge (Sec.~\ref{sec:robust}).
 
 \section{Related Work}
 
-\textbf{Refusal as a direction.} Arditi et al.~\cite{arditi2024refusal} show
+\textbf{Refusal as a direction.} \citet{arditi2024refusal} show
 refusal is mediated by a single linear direction obtainable by
 difference-in-means, and that ablating it removes refusal behaviour. We reuse
 their extraction and ablation protocol as a causal check on layer choice, not as
 an attack. Representation-level analysis of this kind follows
-Zou et al.~\cite{zou2023representation}.
+\citet{zou2023representation}.
 
-\textbf{Scoring jailbreak success.} StrongREJECT~\cite{souly2024strongreject}
+\textbf{Scoring jailbreak success.} StrongREJECT~\citep{souly2024strongreject}
 showed that refusal-based and keyword-based scorers inflate single-turn attack
 success relative to human judgement, and proposed a graded rubric.
-HarmBench~\cite{mazeika2024harmbench} standardised harm classification. Our
+HarmBench~\citep{mazeika2024harmbench} standardised harm classification. Our
 result differs in kind: in the multi-turn setting the inflation is
 \emph{attack-dependent} and large enough to reverse the ranking between attacks,
 which rescaling a single attack's score cannot reveal. This continues a line of
 work showing that a widely used metric can produce qualitatively wrong
 conclusions, from emergent-ability claims that are artifacts of the
-metric~\cite{schaeffer2023emergent} to benchmark validity more
-broadly~\cite{raji2021everything,miller2024error}; over-refusal is the mirror
-failure~\cite{rottger2024xstest}.
+metric~\citep{schaeffer2023emergent} to benchmark validity more
+broadly~\citep{raji2021everything,miller2024error}; over-refusal is the mirror
+failure~\citep{rottger2024xstest}.
 
-\textbf{Multi-turn attacks.} CoSafe~\cite{yu2024cosafe} constructs dialogues in
+\textbf{Multi-turn attacks.} CoSafe~\citep{yu2024cosafe} constructs dialogues in
 which the harmful referent is carried by coreference, so the final turn is often
-innocuous read alone. Crescendo~\cite{russinovich2024crescendo} escalates across
+innocuous read alone. Crescendo~\citep{russinovich2024crescendo} escalates across
 turns and quotes the model's own prior output. Whether later turns are fixed
 text or a function of model output turns out to determine both the attack's real
 efficacy and its sensitivity to quantization. Fully adaptive attackers that
-rewrite each turn from the model's replies~\cite{mehrotra2024tree,andriushchenko2024jailbreaking,ren2024actorattack}
+rewrite each turn from the model's replies~\citep{mehrotra2024tree,andriushchenko2024jailbreaking,ren2024actorattack}
 sit at the far end of this axis, and multi-turn human red-teaming defeats current
-defences~\cite{li2024multiturn,yang2024chainofattack}. Single-turn attack
+defences~\citep{li2024multiturn,yang2024chainofattack}. Single-turn attack
 construction has been studied
-extensively~\cite{zou2023universal,chao2023jailbreaking,liu2024autodan,wei2023jailbroken}.
+extensively~\citep{zou2023universal,chao2023jailbreaking,liu2024autodan,wei2023jailbroken}.
 
-\textbf{Compression and safety.} Kadadekar~\cite{kadadekar2026quality} reports
+\textbf{Compression and safety.} \citet{kadadekar2026quality} reports
 that quality benchmarks do not track safety under quantization, finding
-degradation that splits across models. Chhabra and
-Khalili~\cite{chhabra2025refusal} report the refusal representation stays
-geometrically intact under compression. Hong et al.~\cite{hong2024decoding}
-survey trustworthiness under compression, and Egashira et
-al.~\cite{egashira2024exploiting} show quantization can be adversarially
+degradation that splits across models. \citet{chhabra2025refusal} report the
+refusal representation stays geometrically intact under compression.
+\citet{hong2024decoding} survey trustworthiness under compression, and
+\citet{egashira2024exploiting} show quantization can be adversarially
 exploited. Our results are consistent with the representation being preserved,
 and add that behavioural equivalence holds only for attacks that do not adapt.
 That compression can silently change behaviour on a subset of inputs while
 leaving aggregate quality intact is a known
-pattern~\cite{hooker2019compressed,hooker2020characterising}. Quantization methods
+pattern~\citep{hooker2019compressed,hooker2020characterising}. Quantization methods
 themselves are due
-to~\cite{frantar2023gptq,lin2024awq,dettmers2023qlora,dettmers2022llmint8,xiao2023smoothquant}.
+to~\citep{frantar2023gptq,lin2024awq,dettmers2023qlora,dettmers2022llmint8,xiao2023smoothquant}.
 
 \textbf{Alignment.} The models studied are aligned by RLHF or related
-procedures~\cite{ouyang2022training,bai2022constitutional}, whose robustness has
-been probed by red-teaming~\cite{ganguli2022red,perez2022red} and shown to
-degrade under fine-tuning~\cite{qi2024finetuning}.
+procedures~\citep{ouyang2022training,bai2022constitutional}, whose robustness has
+been probed by red-teaming~\citep{ganguli2022red,perez2022red} and shown to
+degrade under fine-tuning~\citep{qi2024finetuning}.
 
 \section{Method}
 
 \subsection{Models and precisions}
 Five instruction-tuned models across three families: Llama-3.2-3B,
-Llama-3.1-8B~\cite{dubey2024llama}, Qwen2.5-3B, Qwen2.5-7B,
+Llama-3.1-8B~\citep{dubey2024llama}, Qwen2.5-3B, Qwen2.5-7B,
 Mistral-7B-Instruct-v0.3. Precisions are
-FP16, NF4 (bitsandbytes, quantized at load), AWQ~\cite{lin2024awq} and
-GPTQ~\cite{frantar2023gptq} where published 4-bit checkpoints exist. Generation
+FP16, NF4 (bitsandbytes, quantized at load), AWQ~\citep{lin2024awq} and
+GPTQ~\citep{frantar2023gptq} where published 4-bit checkpoints exist. Generation
 is greedy throughout, so differences are attributable to weights rather than
 sampling.
 
@@ -182,7 +204,7 @@ sampling.
 established early and referred to pronominally at the end. \textbf{Crescendo}
 escalates over four turns and, critically, quotes the model's own second-turn
 output back to it in the third. As a fully adaptive third attack on Qwen2.5-3B we
-also run \textbf{PAIR}~\cite{chao2023jailbreaking}, in which a separate attacker
+also run \textbf{PAIR}~\citep{chao2023jailbreaking}, in which a separate attacker
 model (Mistral-7B, held fixed across precisions) rewrites the request from the
 target's replies over up to four rounds; Sec.~\ref{sec:inversion} shows this
 attack is the sharpest illustration of the metric's failure rather than of any
@@ -210,12 +232,12 @@ choice causal rather than correlational.
 
 \subsection{Metrics and statistics}
 Refusal is scored by a substring classifier over the final response. Harm is
-scored independently by Llama Guard 3 8B~\cite{inan2023llamaguard} over all
+scored independently by Llama Guard 3 8B~\citep{inan2023llamaguard} over all
 6{,}000 completions, and every completion is scored a second time by Granite
-Guardian 3.1 2B~\cite{padhi2024granite}, an architecture that appears nowhere
+Guardian 3.1 2B~\citep{padhi2024granite}, an architecture that appears nowhere
 among the systems under test, so its errors cannot correlate with them. Other
 open harm judges follow a similar
-design~\cite{han2024wildguard,zeng2024shieldgemma}. Judging precedes analysis and runs one file at a time, so no verdict
+design~\citep{han2024wildguard,zeng2024shieldgemma}. Judging precedes analysis and runs one file at a time, so no verdict
 is confounded by generation hardware. All comparisons are paired within scenario
 identifier: McNemar's exact test for binary refusal, Wilcoxon signed-rank for
 attack-level comparisons, and Bonferroni correction across the fourteen precision
@@ -317,7 +339,7 @@ narrow $4.8$--$5.6$\pp. The ordering reverses regardless of how harm is defined.
 
 The two judges disagree more than either's self-description would suggest, a
 reliability concern also raised for LLM-as-judge
-evaluation~\cite{zheng2023judging}: over
+evaluation~\citep{zheng2023judging}: over
 all $6{,}000$ responses they agree on $88.6\%$, Cohen's $\kappa=0.45$, with
 Granite flagging harm about twice as often as Llama Guard ($15.6\%$ against
 $7.5\%$). This disagreement is itself evidence that automated harm scoring is
@@ -443,7 +465,7 @@ Llama-8B  & AWQ  & $-3.5$ & $+0.5$  & 1.00 \\
 Qwen-3B   & NF4  & $+1.0$ & $+15.5$ & $<10^{-6}$\,$\dagger$ \\
 Qwen-7B   & NF4  & $+0.0$ & $+11.5$ & $1.2{\times}10^{-4}$\,$\dagger$ \\
 Qwen-7B   & AWQ  & $-2.0$ & $+5.5$  & 0.099 \\
-Qwen-7B   & GPTQ & ---    & $+16.5$ & $<10^{-4}$\,$\dagger$ \\
+Qwen-7B   & GPTQ & n/a    & $+16.5$ & $<10^{-4}$\,$\dagger$ \\
 \midrule
 \multicolumn{2}{l}{Mean $|\Delta|$} & \textbf{1.6} & \textbf{8.1} & \\
 \bottomrule
@@ -543,7 +565,7 @@ script that regenerates every number appear in the artifact. Generation is greed
 throughout; the FP16 arms were reproduced on a second compute backend and the two
 sets agree to within $0.5$\pp{} on average.
 
-\bibliographystyle{IEEEtran}
+\bibliographystyle{plainnat}
 \bibliography{refs}
 
 \end{document}
