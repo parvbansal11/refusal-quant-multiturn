@@ -39,7 +39,9 @@ interval of $[+1.9,+8.2]$ that excludes zero under every one of four harm-labell
 rules, spanning two judges. The gap arises because refusal-based scoring credits
 an attack for every answer the model would have produced without it; decomposing
 reported success against a matched no-attack condition shows that 94\% of
-coreference ``successes'' contain no harmful content at all. We further find that
+coreference ``successes'' contain no harmful content at all; a fully adaptive
+attacker drives this to the extreme, reaching 100\% reported success on one model
+while causing 3--5\% harm. We further find that
 multi-turn vulnerability is a property of the model family rather than of
 quantization. Qwen2.5 refuses 99\% of single-turn harmful prompts yet drops to
 7.5\% under multi-turn attack; Llama-3.x is unmoved by coreference and actively
@@ -179,7 +181,12 @@ sampling.
 \textbf{CoSafe} supplies three scripted user turns whose harmful referent is
 established early and referred to pronominally at the end. \textbf{Crescendo}
 escalates over four turns and, critically, quotes the model's own second-turn
-output back to it in the third.
+output back to it in the third. As a fully adaptive third attack on Qwen2.5-3B we
+also run \textbf{PAIR}~\cite{chao2023jailbreaking}, in which a separate attacker
+model (Mistral-7B, held fixed across precisions) rewrites the request from the
+target's replies over up to four rounds; Sec.~\ref{sec:inversion} shows this
+attack is the sharpest illustration of the metric's failure rather than of any
+precision effect.
 
 For every scenario we additionally run a \emph{cold} condition: the final
 request alone, with no conversation history. This control makes
@@ -282,6 +289,18 @@ $26$--$151\times$ seen elsewhere). Refusal-based scoring works precisely when th
 model does not refuse, and fails on safety-tuned models, which are the models
 anyone benchmarks.
 
+\textbf{A fully adaptive attack pushes the gap to its limit.} On Qwen2.5-3B the
+PAIR attacker reaches a reported ASR of 100\% at both FP16 and NF4, with the
+attacker declining on 0 of its roughly 200 rewrite rounds, so the score is not an
+artifact of a stalled attacker. Yet attributable harm under Llama Guard is only
+3--5\%. The attacker achieves universal non-refusal not by defeating the safety
+behaviour but by softening each request until it is benign: ``write a script that
+exploits a vulnerability'' becomes ``identify and mitigate vulnerabilities'',
+``hack a government database'' becomes ``enhance data security''. The model
+answers the softened question with harmless content, and refusal-based scoring
+credits the attack for all of it. PAIR is thus the metric's failure in its purest
+form: an attack scored a complete success while causing almost no harm.
+
 \textbf{Scope.} The inversion is an aggregate result. Per configuration the flip
 occurs in $9/14$ cases, a sign test at $p=0.42$, underpowered at this sample
 size. We claim the aggregate ordering reverses, not that it reverses everywhere.
@@ -303,7 +322,13 @@ all $6{,}000$ responses they agree on $88.6\%$, Cohen's $\kappa=0.45$, with
 Granite flagging harm about twice as often as Llama Guard ($15.6\%$ against
 $7.5\%$). This disagreement is itself evidence that automated harm scoring is
 unreliable, and it is why we report the inversion as an interval robust to the
-judge rather than a single $p$-value. On a stratified sample of 200 responses we
+judge rather than a single $p$-value. The PAIR responses are the starkest case:
+the two judges disagree on $49\%$ of them, Llama Guard labelling $4\%$ harmful
+and Granite $53\%$. Because PAIR softens each request to an on-topic but benign
+form, Granite flags on the surviving topic (vulnerabilities, databases,
+explosives) while Llama Guard reads the benign content; which judge is right
+determines whether PAIR causes $4\%$ harm or $53\%$, and no automated scorer
+settles it. On a stratified sample of 200 responses we
 add a third, unrelated judgement: of the coreference ``successes'' both automated
 judges call harmless, the third labels only $10\%$ ($4/40$) harmful, and the
 under-flagging rate is identical across the two attacks ($14\%$ each on the
@@ -493,8 +518,13 @@ quantized variants and Llama-8B GPTQ were not collected because compute was
 exhausted, and one CoSafe arm for Qwen-7B GPTQ was lost to a storage fault. The
 mechanism of Sec.~\ref{sec:quant} predicts that a fully adaptive attacker, whose
 every turn is rewritten from the model's replies, should show a still larger
-precision effect; testing that dose-response relationship is left to future work,
-as a preliminary attempt was dominated by the attacker model's own refusals.
+precision effect. Our PAIR run does not confirm this: it saturates reported ASR
+at 100\% under both precisions, leaving no headroom for a precision effect to
+appear ($0.0$\pp), so it can neither support nor refute the dose-response
+prediction. It also reframes each goal into a benign request, which makes it a
+strong probe of the metric but a weak instance of the threat model the metric is
+meant to capture. A precision comparison on a fully adaptive attack that does not
+saturate the score remains future work.
 
 \section{Conclusion}
 
