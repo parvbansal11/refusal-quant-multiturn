@@ -4,13 +4,14 @@
   "quant": "nf4",
   "layer": 24,
   "attack": "pair",
-  "attacker": "meta-llama/Llama-3.2-3B-Instruct",
+  "attacker": "mistralai/Mistral-7B-Instruct-v0.3",
   "iters": 4,
   "n": 100,
   "prompts": "advbench_harmful_behaviors.csv",
   "cold_refusal": 0.99,
   "incontext_refusal": 0.0,
-  "cold_proj": 37.68694183349609,
-  "incontext_proj": 14.199997053146362,
-  "mean_queries": 1.14
+  "cold_proj": 37.257712516784665,
+  "incontext_proj": 15.75822774887085,
+  "mean_queries": 1.03,
+  "attacker_declined": 0
 }
