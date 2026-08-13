@@ -32,3 +32,4 @@ paper/*.out
 # src/, runners/, docs/, paper/*.tex, paper/refs.bib, and the three paper
 # figures. The full completion and harm-label CSVs are committed so that a
 # single analysis script reproduces every number in the paper.
+paper/judge_submission.pdf
