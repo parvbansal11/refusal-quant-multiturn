@@ -9,9 +9,18 @@
 \usepackage{booktabs}
 \usepackage{microtype}
 \usepackage{titlesec}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,calc,fit}
 \usepackage[round]{natbib}
 \usepackage[hidelinks]{hyperref}
 \usepackage{url}
+
+\definecolor{ink}{HTML}{1A1A1A}
+\definecolor{pblue}{HTML}{41668C}
+\definecolor{pred}{HTML}{B6493F}
+\definecolor{pgrey}{HTML}{8A97A4}
+\newcommand{\hd}{\bfseries}   % node-title weight inside the pipeline figure
 
 \setlength{\columnsep}{0.28in}
 
@@ -43,10 +52,11 @@
 \title{Refusal Is Not Harm: Multi-Turn Jailbreak\\Benchmarks Rank Attacks Backwards}
 
 \author{%
-  \textbf{Parv Bansal} \quad \textbf{Vivaan Jain} \quad
-  \textbf{Vanshika Dhiman} \quad \textbf{Dinesh Kumar Vishwakarma}\\[0.4em]
+  {\large\textbf{Parv Bansal}}$^{\dagger}$ \quad \textbf{Vivaan Jain} \quad
+  \textbf{Vanshika Dhiman} \quad \textbf{Dinesh Kumar Vishwakarma}\\[0.5em]
   Artificial Intelligence and Machine Learning Society (AIMS)\\
-  Delhi Technological University%
+  Delhi Technological University\\[0.3em]
+  {\footnotesize $^{\dagger}$Lead author. Correspondence: \texttt{parvbansal05@gmail.com}}%
 }
 
 \begin{document}
@@ -54,35 +64,68 @@
 \maketitle
 
 \begin{abstract}
-Multi-turn jailbreak evaluations almost universally score an attack as
-successful when the model fails to refuse. We label 6{,}000 model responses with
-two independent harm judges across five instruction-tuned models, four numeric
-precisions, and two multi-turn attacks, and show that this convention does not
-merely overstate attack success: it reverses the ordering of attacks. Across
-fourteen matched model-precision configurations a coreference attack reports
-81.9\% success against 20.2\% for an escalation attack (Wilcoxon $p<0.001$),
-while causing 1.1\% attributable harm against 6.0\%. The reversal in
-attributable harm is $+4.9$ percentage points (\pp) with a bootstrap 95\%
-interval of $[+1.9,+8.2]$ that excludes zero under every one of four harm-labelling
-rules, spanning two judges. The gap arises because refusal-based scoring credits
-an attack for every answer the model would have produced without it; decomposing
-reported success against a matched no-attack condition shows that 94\% of
-coreference ``successes'' contain no harmful content at all; a fully adaptive
-attacker drives this to the extreme, reaching 100\% reported success on one model
-while causing 3--5\% harm. We further find that
-multi-turn vulnerability is a property of the model family rather than of
-quantization. Qwen2.5 refuses 99\% of single-turn harmful prompts yet drops to
-7.5\% under multi-turn attack; Llama-3.x is unmoved by coreference and actively
-hardens against escalation ($+23.0$\pp{} refusal, $p<10^{-4}$); Mistral-7B refuses
-so rarely that its reported success is genuine. Finally, quantization leaves
-static attacks unchanged (mean $1.6$\pp, $0/6$ significant) but significantly
-alters adaptive ones (mean $8.1$\pp, three configurations surviving correction),
-an effect we separate from a compute-backend confound with a matched FP16
-replication (mean $0.5$\pp) and explain mechanistically: an attack conditioned on
-model output is a different attack against a different model. We release all
-completions, both sets of harm labels, and a single script that regenerates every
-number reported here.
+Multi-turn jailbreak evaluations almost always score an attack as successful when
+the model fails to refuse. Using two independent harm judges over six thousand
+responses across five instruction-tuned models and three multi-turn attacks, we
+show that this convention does not merely overstate success. It reverses the
+ordering of attacks: the attack that reports far more success causes far less
+harm, and the reversal holds under every way we define harm. The cause is that
+refusal-based scoring credits an attack for every answer the model would have
+produced anyway. We separate the two with a cold control, the same request with
+no conversation, and an independent harm judge, which together split reported
+success into answers that carry no harm, harm that was already available, and
+harm the attack actually caused. Most reported successes carry no harm at all,
+and a fully adaptive attacker reaches complete reported success while causing
+almost none, purely by rewording requests into benign ones. We further find that
+multi-turn vulnerability is a property of the model family rather than of numeric
+precision, and that the two safety judges disagree often enough to matter. We
+release all data and one script that reproduces every result.
 \end{abstract}
+
+\begin{figure*}[t]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+  font=\footnotesize,
+  every node/.style={align=center},
+  stg/.style={rounded corners=2.5pt, draw=ink, line width=0.6pt, fill=white,
+              inner xsep=4pt, inner ysep=5pt, text width=21mm, minimum height=14mm},
+  wstg/.style={stg, text width=25mm},
+  cold/.style={rounded corners=2.5pt, draw=pred, line width=1pt, fill=pred!7,
+               inner xsep=4pt, inner ysep=5pt, text width=23mm, minimum height=12mm},
+  res/.style={rounded corners=2.5pt, draw=pblue, line width=1pt, fill=pblue!8,
+              inner xsep=4pt, inner ysep=5pt, text width=25mm, minimum height=14mm},
+  hd/.style={font=\footnotesize\bfseries},
+  arr/.style={-{Stealth[length=1.8mm]}, line width=0.7pt, draw=ink!80},
+  rarr/.style={-{Stealth[length=1.8mm]}, line width=1pt, draw=pred},
+]
+\node[stg] (inp) {{\hd Inputs}\\[1pt]5 models\\$\times$ 4 precisions\\AdvBench goals};
+\node[stg, right=6mm of inp] (att) {{\hd Attacks}\\[1pt]CoSafe\\Crescendo\\PAIR};
+\node[stg, right=6mm of att] (gen) {{\hd Generation}\\[1pt]greedy decode\\6{,}000\\responses};
+\node[wstg, right=6mm of gen] (meas) {{\hd Measurement}\\[1pt]refusal classifier\\Llama Guard 3\\$+$ Granite};
+\node[res, right=6mm of meas] (dec) {{\hd Decomposition}\\[1pt]no-harm $+$\\pre-existing $+$\\{\color{pred}\textbf{attributable}}};
+\node[res, right=6mm of dec, fill=pblue!14] (out) {{\hd Result}\\[1pt]reported success\\inverts the\\harm ordering};
+\node[cold, below=7mm of att] (cold) {{\color{pred}\hd Cold control}\\[1pt]final request,\\no conversation};
+
+\draw[arr] (inp) -- (att);
+\draw[arr] (att) -- (gen);
+\draw[arr] (gen) -- (meas);
+\draw[arr] (meas) -- (dec);
+\draw[arr] (dec) -- (out);
+\draw[rarr] (cold.east) -| (gen.south);
+\draw[rarr] (cold.south) -- ++(0,-4mm) -| (dec.south)
+  node[pos=0.25, below, font=\scriptsize\itshape, text=pred]{defines attributable harm};
+\end{tikzpicture}}
+\caption{The evaluation pipeline. Every model, precision, and attack produces a
+response under greedy decoding, and each response is scored two ways: a refusal
+classifier and two independent harm judges. The \textcolor{pred}{cold control},
+the same final request issued with no conversation, is the step the field omits.
+It splits reported success into answers that carry no harm, harm the model would
+have produced without any attack, and harm the attack actually caused. Only the
+last is attributable, and ranking attacks by it reverses the ordering the
+reported metric gives.}
+\label{fig:method}
+\end{figure*}
 
 \section{Introduction}
 
@@ -98,10 +141,10 @@ has merely been asked. Refusal-based scoring cannot separate the two, because it
 never observes what the model would have done without the conversation.
 
 We measure the size of that failure by adding two things the literature usually
-omits: an independent harm judge applied to every response, and a matched
-\emph{cold} condition in which the same final request is issued with no
-preceding conversation. Together these decompose reported success into three
-parts,
+omits (Figure~\ref{fig:method}): an independent harm judge applied to every
+response, and a matched \emph{cold} condition in which the same final request is
+issued with no preceding conversation. Together these decompose reported success
+into three parts,
 \begin{equation}
 \text{reported} = \underbrace{\text{no harm}}_{\text{harmless}}
  + \underbrace{\text{pre-existing}}_{\text{harmful cold}}
