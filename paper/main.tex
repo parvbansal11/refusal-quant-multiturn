@@ -12,7 +12,7 @@
 \usepackage{xcolor}
 \usepackage{tikz}
 \usetikzlibrary{arrows.meta,positioning,calc,fit}
-\usepackage[round]{natbib}
+\usepackage[numbers,sort&compress]{natbib}
 \usepackage[hidelinks]{hyperref}
 \usepackage{url}
 
@@ -208,9 +208,10 @@ text or a function of model output turns out to determine both the attack's real
 efficacy and its sensitivity to quantization. Fully adaptive attackers that
 rewrite each turn from the model's replies~\citep{mehrotra2024tree,andriushchenko2024jailbreaking,ren2024actorattack}
 sit at the far end of this axis, and multi-turn human red-teaming defeats current
-defences~\citep{li2024multiturn,yang2024chainofattack}. Single-turn attack
-construction has been studied
-extensively~\citep{zou2023universal,chao2023jailbreaking,liu2024autodan,wei2023jailbroken}.
+defences~\citep{li2024multiturn,yang2024chainofattack}; safety can fail as a
+function of conversational state rather than any single turn~\citep{star2026state}.
+Single-turn attack construction and its benchmarks have been studied
+extensively~\citep{zou2023universal,chao2023jailbreaking,liu2024autodan,wei2023jailbroken,chao2024jailbreakbench}.
 
 \textbf{Compression and safety.} \citet{kadadekar2026quality} reports
 that quality benchmarks do not track safety under quantization, finding
@@ -608,6 +609,7 @@ script that regenerates every number appear in the artifact. Generation is greed
 throughout; the FP16 arms were reproduced on a second compute backend and the two
 sets agree to within $0.5$\pp{} on average.
 
+\nocite{*}   % include every reference collected in refs.bib
 \bibliographystyle{plainnat}
 \bibliography{refs}
 
