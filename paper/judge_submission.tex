@@ -2,7 +2,8 @@
 % [final] option so authors are anonymized. neurips_2026.sty loads natbib.
 % Requires: neurips_2026.sty and refs.bib in this directory.
 \documentclass{article}
-\usepackage{neurips_2026}
+\usepackage[nonatbib]{neurips_2026}
+\usepackage[numbers,sort&compress]{natbib}
 
 \usepackage[T1]{fontenc}
 \usepackage{amsmath}
@@ -285,6 +286,7 @@ independent harm label, both cheap, restore a measurement that means what it say
 Before we trust a safety judge, we should audit it.
 
 {\small
+\nocite{*}   % include the full reference set (references do not count to the page limit)
 \bibliographystyle{plainnat}
 \bibliography{refs}
 }
