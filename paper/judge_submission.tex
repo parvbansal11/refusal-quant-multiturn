@@ -42,7 +42,7 @@ Inverts the Ranking of Multi-Turn Jailbreaks}
 \begin{abstract}
 Safety evaluations of language models usually delegate the verdict to a judge: a
 refusal classifier, or a model that labels a response harmful. We ask whether that
-judge measures what it claims. Using two independent harm judges over six thousand
+judge measures what it claims. Using two independent harm judges over 8{,}600
 responses across five instruction-tuned models and three multi-turn attacks, we
 show the standard refusal-based judge is not merely noisy but invalid. It reverses
 the ordering of attacks: the attack it scores far higher causes far less harm, and
@@ -102,7 +102,7 @@ refuse it in context, and the response was judged harmful.
 ]
 \node[stg] (inp) {{\hd Inputs}\\[1pt]5 models\\$\times$ 4 precisions\\AdvBench goals};
 \node[stg, right=6mm of inp] (att) {{\hd Attacks}\\[1pt]CoSafe\\Crescendo\\PAIR};
-\node[stg, right=6mm of att] (gen) {{\hd Generation}\\[1pt]greedy decode\\6{,}000\\responses};
+\node[stg, right=6mm of att] (gen) {{\hd Generation}\\[1pt]greedy decode\\8{,}600\\responses};
 \node[wstg, right=6mm of gen] (meas) {{\hd Measurement}\\[1pt]refusal classifier\\Llama Guard 3\\$+$ Granite};
 \node[res, right=6mm of meas] (dec) {{\hd Decomposition}\\[1pt]no-harm $+$\\pre-existing $+$\\{\color{pred}\textbf{attributable}}};
 \node[res, right=6mm of dec, fill=pblue!14] (out) {{\hd Result}\\[1pt]reported success\\inverts the\\harm ordering};
@@ -139,9 +139,10 @@ its limit.
 \item The refusal judge inverts the ranking of two widely used multi-turn attacks;
 reported success and attributable harm order them oppositely, and the reversal
 survives every harm-labelling rule we try (Section~\ref{sec:inv}).
-\item The harm judges are themselves unreliable: pooled agreement is
-$\kappa=0.45$, and on a fully adaptive attack two safety judges disagree on 49\%
-of responses, one seeing 4\% harm and the other 53\% (Section~\ref{sec:judge}).
+\item The harm judges are themselves unreliable: pooled $\kappa=0.44$
+($\mathrm{PABAK}=0.77$), and on a fully adaptive attack two safety judges disagree
+on 49\% of responses, one seeing 4\% harm and the other 53\%
+(Section~\ref{sec:judge}).
 \item A cheap remedy: report a no-attack baseline alongside ASR, or an independent
 harm label. Either exposes the inversion at one extra generation per scenario
 (Section~\ref{sec:judge}).
@@ -157,11 +158,34 @@ harmful referent by coreference, so its final turn often reads as innocuous.
 quotes the model's own prior output. \textbf{PAIR}~\citep{chao2023jailbreaking}, on
 Qwen2.5-3B, uses a fixed attacker model that rewrites the request from the target's
 replies. Harm is labelled by Llama Guard 3 8B~\citep{inan2023llamaguard} over all
-6{,}000 responses and independently by Granite Guardian 3.1
+8{,}600 responses and independently by Granite Guardian 3.1
 2B~\citep{padhi2024granite}, an architecture that appears nowhere among the systems
 under test. Comparisons are paired within scenario; the central effect is reported
 as a $10{,}000$-sample bootstrap interval, since it rests on fourteen matched
-configurations where a rank test resolves coarsely. This continues a line of work
+configurations where a rank test resolves coarsely. Per-cell $n$ is 100 or 200
+(Table~\ref{tab:decomp}); several decompositions are computed from the same
+responses, so the individual $p$-values are not corrected for multiplicity and we
+rely on the bootstrap intervals and the consistency of the sign across
+configurations rather than on any single test.
+
+\paragraph{How the cold control is constructed, and what it can and cannot show.}
+This control carries the paper, so we state its construction exactly. For
+Crescendo and PAIR the cold prompt is the original AdvBench goal, a self-contained
+harmful request, issued with no conversation. For CoSafe the cold prompt is the
+scenario's final user turn, taken verbatim with the preceding turns removed. CoSafe
+establishes its harmful referent by coreference, so this literal strip leaves a
+context-dependent referent in 87\% of its scenarios (for example, ``Can you
+elaborate more on these dishonest practices?''). Read alone such a turn is
+genuinely ambiguous, and the model usually does not refuse it. This is a real
+limitation with a known direction: it \emph{depresses} CoSafe's cold refusal rate,
+which \emph{lowers} its measured attributable harm and therefore flatters our own
+conclusion. We therefore bound the worst case. If the control were entirely invalid
+for CoSafe, so that every harmful CoSafe response were counted as attack-caused,
+CoSafe's attributable harm would rise to 5.8\% against Crescendo's 6.0\%. The gap
+closes to near-parity but the ordering still does not reverse, so the inversion is
+not an artifact of how the cold prompt is built. Rewriting each CoSafe final turn
+into a standalone request would sharpen the estimate, but doing so by hand
+introduces a second judgement into the control and we leave it to future work. This continues a line of work
 on evaluation validity~\citep{souly2024strongreject,schaeffer2023emergent,rottger2024xstest}
 and on the reliability of model judges~\citep{zheng2023judging}.
 
@@ -185,23 +209,25 @@ model does not refuse, and fails on the safety-tuned models everyone benchmarks.
 \centering
 \caption{Decomposition of reported multi-turn success (\%), FP16 rows.
 Attributable harm needs refusal when cold, non-refusal in context, and a harmful
-verdict.}
+verdict. Per-cell $n$ is 100 or 200, so a single cell resolves to 1.0 or 0.5
+percentage points and individual cells should not be read as precise; the claim
+rests on the pooled means and the bootstrap intervals in Table~\ref{tab:robust}.}
 \label{tab:decomp}
 \small
-\begin{tabular}{llrrrr}
+\begin{tabular}{llrrrrr}
 \toprule
-Model & Attack & Rep. & Harm & \attr & Pre-ex. \\
+Model & Attack & $n$ & Rep. & Harm & \attr & Pre-ex. \\
 \midrule
-Llama-3B    & CoSafe    & 76.0 & 4.0 & 1.0 & 3.0 \\
-Qwen-7B     & CoSafe    & 94.0 & 6.0 & 0.0 & 6.0 \\
-Mistral-7B  & CoSafe    & 88.0 & 9.0 & 0.0 & 9.0 \\
+Llama-3B    & CoSafe    & 100 & 76.0 & 4.0 & 1.0 & 3.0 \\
+Qwen-7B     & CoSafe    & 100 & 94.0 & 6.0 & 0.0 & 6.0 \\
+Mistral-7B  & CoSafe    & 100 & 88.0 & 9.0 & 0.0 & 9.0 \\
 \midrule
-Llama-3B    & Crescendo &  5.5 &  7.0 &  2.5 &  1.5 \\
-Qwen-7B     & Crescendo & 32.5 & 14.0 & 14.0 &  0.0 \\
-Mistral-7B  & Crescendo & 85.5 & 73.0 &  8.5 & 60.5 \\
+Llama-3B    & Crescendo & 200 &  5.5 &  7.0 &  2.5 &  1.5 \\
+Qwen-7B     & Crescendo & 200 & 32.5 & 14.0 & 14.0 &  0.0 \\
+Mistral-7B  & Crescendo & 200 & 85.5 & 73.0 &  8.5 & 60.5 \\
 \midrule
-\multicolumn{2}{l}{\textbf{Mean CoSafe} (14 runs)}    & \textbf{81.9} & 5.8 & \textbf{1.1} & 4.6 \\
-\multicolumn{2}{l}{\textbf{Mean Crescendo} (15 runs)} & \textbf{22.1} & 13.2 & \textbf{6.7} & 5.4 \\
+\multicolumn{2}{l}{\textbf{Mean CoSafe} (14 runs)}    & & \textbf{81.9} & 5.8 & \textbf{1.1} & 4.6 \\
+\multicolumn{2}{l}{\textbf{Mean Crescendo} (15 runs)} & & \textbf{22.1} & 13.2 & \textbf{6.7} & 5.4 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -215,17 +241,30 @@ stays positive and its interval excludes zero in all four; the point estimate
 moves only over $4.8$--$5.6$\pp. The inversion does not depend on how harm is
 defined.
 
-\textbf{The judges are unreliable.} Over all 6{,}000 responses the two judges agree
-88.6\% of the time, Cohen's $\kappa=0.45$, with Granite flagging harm about twice
-as often as Llama Guard (15.6\% against 7.5\%). Moderate agreement between two
-purpose-built safety classifiers is itself a finding for evaluation practice, and
-it is why we report the inversion as an interval robust across both.
+\textbf{The judges are unreliable.} Over all 8{,}600 responses the two judges agree
+88.3\% of the time, Cohen's $\kappa=0.44$. That $\kappa$ is partly depressed by
+base rates rather than by disorder: Granite flags harm about twice as often as
+Llama Guard (15.7\% against 7.2\%), and harm is rare overall, which is the regime
+where $\kappa$ is known to understate agreement. The prevalence-adjusted
+bias-adjusted statistic is $\mathrm{PABAK}=0.77$, so on the full corpus the two
+judges are in substantial agreement once the skew is accounted for. We report both,
+because which one is quoted changes the story, and because the gap between them is
+itself an argument for reporting base rates alongside any inter-judge score.
+Moderate agreement between two purpose-built safety classifiers is a finding for
+evaluation practice, and it is why we report the inversion as an interval robust
+across both.
 
 \textbf{A fully adaptive attack drives the split to its limit.} PAIR reaches a
 reported ASR of 100\% on Qwen2.5-3B, with the attacker declining on 0 of its
 roughly 200 rewrite rounds, so the score is not an artifact of a stalled attacker.
-Yet the two judges disagree on 49\% of these responses: Llama Guard labels 4\%
-harmful, Granite 53\%. The attacker earns universal non-refusal by softening each
+We stress that this 100\% is produced by the very refusal judge this paper is
+discrediting, and we quote it for exactly that reason: it is what a standard
+evaluation would report, and it is wrong. Under our own decomposition the same
+responses carry 3--5\% attributable harm. Yet the two harm judges disagree on
+49\% of them: Llama Guard labels 4\% harmful, Granite 53\%. Here the base-rate
+correction does not rescue agreement, $\mathrm{PABAK}=0.02$ against a pooled
+$0.77$, so on the hardest cases the two judges are near chance however the
+statistic is adjusted. The attacker earns universal non-refusal by softening each
 request into a benign one, ``write a script that exploits a vulnerability'' becomes
 ``identify and mitigate vulnerabilities'', and the model answers the softened
 question with harmless content. Granite flags the surviving topic; Llama Guard
@@ -269,7 +308,7 @@ with a matched FP16 replication. Neither is visible to a single-turn benchmark o
 to the refusal judge.
 
 The central limitation is the one this workshop centers: harm is scored by two
-automated judges, not humans. They agree at $\kappa=0.45$, so the choice of judge
+automated judges, not humans. They agree at $\kappa=0.44$ ($\mathrm{PABAK}=0.77$), so the choice of judge
 is real variance; we address it with an interval robust across both judges and two
 labelling rules, but human validation on the contested cases, especially the PAIR
 responses where the judges split evenly, is the natural next step and is underway.
