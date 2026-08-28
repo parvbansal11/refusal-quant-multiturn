@@ -139,11 +139,11 @@ reported metric gives.}
 \end{figure}
 
 Across five models, four precisions and two multi-turn attacks the refusal judge
-does not merely inflate. It \emph{reverses} the ordering: the attack it scores
-four times higher causes five times less harm. We then turn the same scrutiny on
-the harm judges. Two purpose-built safety classifiers disagree on almost half of
-the contested cases, and a fully adaptive attacker drives their disagreement to
-its limit.
+does not merely inflate: it \emph{reverses} the ordering, and the attack it
+scores four times higher causes five times less harm. Turning the same scrutiny on
+the harm judges gives the second result: two purpose-built safety classifiers
+disagree on almost half of the contested cases, and a fully adaptive attacker
+drives that disagreement to its limit.
 
 \smallskip\noindent\textbf{Contributions.}
 \begin{enumerate}\itemsep2pt
@@ -155,16 +155,16 @@ survives every harm-labelling rule we try (Section~\ref{sec:inv}).
 on 49\% of responses, one seeing 4\% harm and the other 53\%
 (Section~\ref{sec:judge}).
 \item A cheap remedy: report a no-attack baseline alongside ASR, or an independent
-harm label. Either exposes the inversion at one extra generation per scenario
+harm label; either exposes the inversion at one extra generation per scenario
 (Section~\ref{sec:judge}).
 \end{enumerate}
 
 \section{Setup}
 \label{sec:setup}
 
-Five instruction-tuned models across three families (Llama-3.2-3B, Llama-3.1-8B,
-Qwen2.5-3B, Qwen2.5-7B, Mistral-7B-Instruct-v0.3), four precisions (FP16, NF4, AWQ,
-GPTQ), greedy decoding throughout. \textbf{CoSafe}~\citep{yu2024cosafe} carries the
+We evaluate five instruction-tuned models across three families (Llama-3.2-3B,
+Llama-3.1-8B, Qwen2.5-3B, Qwen2.5-7B, Mistral-7B-Instruct-v0.3) at four precisions
+(FP16, NF4, AWQ, GPTQ), decoding greedily throughout. \textbf{CoSafe}~\citep{yu2024cosafe} carries the
 harmful referent by coreference, so its final turn often reads as innocuous.
 \textbf{Crescendo}~\citep{russinovich2024crescendo} escalates over four turns and
 quotes the model's own prior output. These two are the primary comparison, and every
@@ -187,7 +187,9 @@ conservative choice at this sample size. Per-cell $n$ is 100 or 200
 (Table~\ref{tab:decomp}); several decompositions are computed from the same
 responses, so the individual $p$-values are not corrected for multiplicity and we
 rely on the bootstrap intervals and the consistency of the sign across
-configurations rather than on any single test.
+configurations rather than on any single test. This continues a line of work on
+evaluation validity~\citep{souly2024strongreject,schaeffer2023emergent,rottger2024xstest}
+and on the reliability of model judges~\citep{zheng2023judging}.
 
 \paragraph{How the cold control is constructed, and what it can and cannot show.}
 This control carries the paper, so we state its construction exactly. For
@@ -200,15 +202,13 @@ elaborate more on these dishonest practices?''). Read alone such a turn is
 genuinely ambiguous, and the model usually does not refuse it. This is a real
 limitation with a known direction: it \emph{depresses} CoSafe's cold refusal rate,
 which \emph{lowers} its measured attributable harm and therefore flatters our own
-conclusion. We therefore bound the worst case. If the control were entirely invalid
+conclusion. We therefore bound the worst case: if the control were entirely invalid
 for CoSafe, so that every harmful CoSafe response were counted as attack-caused,
 CoSafe's attributable harm would rise to 5.8\% against Crescendo's 6.0\%. The gap
-closes to near-parity but the ordering still does not reverse, so the inversion is
+closes to near-parity, but the ordering still does not reverse, so the inversion is
 not an artifact of how the cold prompt is built. Rewriting each CoSafe final turn
 into a standalone request would sharpen the estimate, but doing so by hand
-introduces a second judgement into the control and we leave it to future work. This continues a line of work
-on evaluation validity~\citep{souly2024strongreject,schaeffer2023emergent,rottger2024xstest}
-and on the reliability of model judges~\citep{zheng2023judging}.
+introduces a second judgement into the control, and we leave it to future work.
 
 \section{The refusal judge inverts the attack ordering}
 \label{sec:inv}
@@ -263,7 +263,7 @@ moves only over $4.8$--$5.6$\pp. The inversion does not depend on how harm is
 defined.
 
 \textbf{The judges are unreliable.} Over all 8{,}600 responses the two judges agree
-88.3\% of the time, Cohen's $\kappa=0.44$. That $\kappa$ is partly depressed by
+88.3\% of the time, Cohen's $\kappa=0.44$; that $\kappa$ is partly depressed by
 base rates rather than by disorder: Granite flags harm about twice as often as
 Llama Guard (15.7\% against 7.2\%), and harm is rare overall, which is the regime
 where $\kappa$ is known to understate agreement. The prevalence-adjusted
@@ -349,17 +349,21 @@ Before we trust a safety judge, we should audit it.
 \section{Reproducibility details}
 \label{app:repro}
 
-\textbf{Checkpoints.} \texttt{meta-llama/Llama-3.2-3B-Instruct},
-\texttt{meta-llama/Meta-Llama-3.1-8B-Instruct},
-\texttt{Qwen/Qwen2.5-3B-Instruct}, \texttt{Qwen/Qwen2.5-7B-Instruct},
-\texttt{mistralai/Mistral-7B-Instruct-v0.3}. Quantized variants are the published
-4-bit checkpoints where they exist:
-\texttt{hugging-quants/Meta-Llama-3.1-8B-Instruct-AWQ-INT4},
-\texttt{hugging-quants/Meta-Llama-3.1-8B-Instruct-GPTQ-INT4},
-\texttt{Qwen/Qwen2.5-7B-Instruct-AWQ},
-\texttt{Qwen/Qwen2.5-7B-Instruct-GPTQ-Int4},
-\texttt{solidrust/Mistral-7B-Instruct-v0.3-AWQ}. NF4 is quantized at load with
-bitsandbytes (double quantization, \texttt{float16} compute dtype).
+\textbf{Checkpoints.} NF4 is quantized at load with bitsandbytes (double
+quantization, \texttt{float16} compute dtype); the AWQ and GPTQ arms use published
+4-bit checkpoints. Base models and their quantized variants:
+
+{\raggedright\small
+\texttt{meta-llama/Llama-3.2-3B-Instruct}\\
+\texttt{meta-llama/Meta-Llama-3.1-8B-Instruct}\\
+\texttt{Qwen/Qwen2.5-3B-Instruct}\\
+\texttt{Qwen/Qwen2.5-7B-Instruct}\\
+\texttt{mistralai/Mistral-7B-Instruct-v0.3}\\
+\texttt{hugging-quants/Meta-Llama-3.1-8B-Instruct-AWQ-INT4}\\
+\texttt{hugging-quants/Meta-Llama-3.1-8B-Instruct-GPTQ-INT4}\\
+\texttt{Qwen/Qwen2.5-7B-Instruct-AWQ}\\
+\texttt{Qwen/Qwen2.5-7B-Instruct-GPTQ-Int4}\\
+\texttt{solidrust/Mistral-7B-Instruct-v0.3-AWQ}\par}
 
 \textbf{Decoding.} Greedy throughout (\texttt{do\_sample=False}), 48 new tokens for
 multi-turn and single-turn replies, so any difference between arms is attributable
