@@ -159,6 +159,62 @@ harm label; either exposes the inversion at one extra generation per scenario
 (Section~\ref{sec:judge}).
 \end{enumerate}
 
+\section{Related work}
+\label{sec:related}
+
+\textbf{Scoring jailbreak success.} StrongREJECT~\citep{souly2024strongreject} showed
+that refusal- and keyword-based scorers inflate single-turn attack success relative
+to human judgement, and proposed a graded rubric; HarmBench~\citep{mazeika2024harmbench}
+and JailbreakBench~\citep{chao2024jailbreakbench} standardised harm classification
+and robustness reporting. Our result differs in kind rather than degree: in the
+multi-turn setting the inflation is \emph{attack-dependent}, and large enough to
+reverse the ranking between two attacks, which rescaling a single attack's score
+cannot reveal. Over-refusal is the mirror failure of the same
+metric~\citep{rottger2024xstest}.
+
+\textbf{Validity of benchmarks and evals.} A widely used metric can produce
+qualitatively wrong conclusions: emergent-ability claims turn out to be artifacts of
+discontinuous scoring~\citep{schaeffer2023emergent}, benchmarks routinely fail to
+measure the construct they name~\citep{raji2021everything}, and evaluation results are
+commonly reported without the error bars needed to interpret
+them~\citep{miller2024error}. We treat refusal-based ASR as exactly this kind of
+construct-validity question.
+
+\textbf{Judges and their reliability.} Model judges are now standard, and their
+reliability is itself contested~\citep{zheng2023judging}. Purpose-built safety
+classifiers include Llama Guard~\citep{inan2023llamaguard}, Granite
+Guardian~\citep{padhi2024granite}, WildGuard~\citep{han2024wildguard} and
+ShieldGemma~\citep{zeng2024shieldgemma}. We use two of architecturally unrelated
+origin and report their disagreement rather than assuming either is ground truth.
+
+\textbf{Multi-turn and adaptive attacks.} CoSafe~\citep{yu2024cosafe} carries the
+harmful referent by coreference; Crescendo~\citep{russinovich2024crescendo} escalates
+and quotes the model's own output. Fully adaptive attackers rewrite each turn from
+the target's replies~\citep{chao2023jailbreaking,mehrotra2024tree,andriushchenko2024jailbreaking,ren2024actorattack},
+multi-turn human red-teaming defeats current defences~\citep{li2024multiturn,yang2024chainofattack},
+and safety can fail as a function of conversational state rather than any single
+turn~\citep{star2026state}. Single-turn attack construction has been studied
+extensively~\citep{zou2023universal,liu2024autodan,wei2023jailbroken}.
+
+\textbf{Alignment and refusal.} The models we study are aligned by RLHF or related
+procedures~\citep{ouyang2022training,bai2022constitutional}, whose robustness has been
+probed by red-teaming~\citep{ganguli2022red,perez2022red} and shown to degrade under
+fine-tuning~\citep{qi2024finetuning}. Refusal itself is mediated by a largely linear
+direction in activation space~\citep{arditi2024refusal,zou2023representation}, which is
+why we treat a refusal classifier as a proxy for a mechanism rather than a measure of
+harm.
+
+\textbf{Compression and safety.} Our arms span four precisions, so we note that
+quality benchmarks do not track safety under
+quantization~\citep{kadadekar2026quality}, that the refusal representation appears
+geometrically intact under compression~\citep{chhabra2025refusal}, that
+trustworthiness under compression is uneven~\citep{hong2024decoding}, and that
+quantization can be adversarially exploited~\citep{egashira2024exploiting}. That
+compression silently changes behaviour on a subset of inputs while leaving aggregate
+quality intact is a known
+pattern~\citep{hooker2019compressed,hooker2020characterising}. Quantization methods
+themselves are due to~\citep{frantar2023gptq,lin2024awq,dettmers2023qlora,dettmers2022llmint8,xiao2023smoothquant}.
+
 \section{Setup}
 \label{sec:setup}
 
