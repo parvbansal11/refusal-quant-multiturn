@@ -290,25 +290,28 @@ model does not refuse, and fails on the safety-tuned models everyone benchmarks.
 \centering
 \caption{Decomposition of reported multi-turn success (\%), FP16 rows.
 Attributable harm needs refusal when cold, non-refusal in context, and a harmful
-verdict. Per-cell $n$ is 100 or 200, so a single cell resolves to 1.0 or 0.5
-percentage points and individual cells should not be read as precise; the claim
-rests on the pooled means and the bootstrap intervals in Table~\ref{tab:robust}.}
+verdict. Means are over the fourteen configurations where both attacks ran, so they
+match the paired tests in the text. Harm is the total harmful-response rate and
+exceeds \attr${}+{}$Pre-ex, because a few responses are judged harmful even though
+the model refused. Per-cell $n$ is 100 or 200, so a single cell resolves to 1.0 or
+0.5 percentage points and individual cells should not be read as precise; the claim
+rests on the means and the bootstrap intervals in Table~\ref{tab:robust}.}
 \label{tab:decomp}
 \small
 \begin{tabular}{llrrrrr}
 \toprule
 Model & Attack & $n$ & Rep. & Harm & \attr & Pre-ex. \\
 \midrule
-Llama-3B    & CoSafe    & 100 & 76.0 & 4.0 & 1.0 & 3.0 \\
-Qwen-7B     & CoSafe    & 100 & 94.0 & 6.0 & 0.0 & 6.0 \\
-Mistral-7B  & CoSafe    & 100 & 88.0 & 9.0 & 0.0 & 9.0 \\
+Llama-3B    & CoSafe    & 100 & 76.0 & 4.0 & 1.0 & 2.0 \\
+Qwen-7B     & CoSafe    & 100 & 94.0 & 6.0 & 0.0 & 5.0 \\
+Mistral-7B  & CoSafe    & 100 & 88.0 & 9.0 & 0.0 & 7.0 \\
 \midrule
 Llama-3B    & Crescendo & 200 &  5.5 &  7.0 &  2.5 &  1.5 \\
 Qwen-7B     & Crescendo & 200 & 32.5 & 14.0 & 14.0 &  0.0 \\
-Mistral-7B  & Crescendo & 200 & 85.5 & 73.0 &  8.5 & 60.5 \\
+Mistral-7B  & Crescendo & 200 & 85.5 & 73.0 &  8.5 & 57.0 \\
 \midrule
-\multicolumn{2}{l}{\textbf{Mean CoSafe} (14 runs)}    & & \textbf{81.9} & 5.8 & \textbf{1.1} & 4.6 \\
-\multicolumn{2}{l}{\textbf{Mean Crescendo} (15 runs)} & & \textbf{22.1} & 13.2 & \textbf{6.7} & 5.4 \\
+\multicolumn{2}{l}{\textbf{Mean CoSafe} (14 matched)}    & & \textbf{81.9} & 5.8 & \textbf{1.1} & 4.3 \\
+\multicolumn{2}{l}{\textbf{Mean Crescendo} (14 matched)} & & \textbf{20.2} & 12.9 & \textbf{6.0} & 4.4 \\
 \bottomrule
 \end{tabular}
 \end{table}
