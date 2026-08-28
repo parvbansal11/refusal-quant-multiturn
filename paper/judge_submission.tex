@@ -43,16 +43,16 @@ Inverts the Ranking of Multi-Turn Jailbreaks}
 Safety evaluations of language models usually delegate the verdict to a judge: a
 refusal classifier, or a model that labels a response harmful. We ask whether that
 judge measures what it claims. Using two independent harm judges over 8{,}600
-responses across five instruction-tuned models and three multi-turn attacks, we
-show the standard refusal-based judge is not merely noisy but invalid. It reverses
-the ordering of attacks: the attack it scores far higher causes far less harm, and
-the reversal holds under every way we define harm. The cause is that a refusal
+responses across five instruction-tuned models, we compare two multi-turn attacks
+and show that the standard refusal-based judge fails to measure attack-attributable
+harm. It reverses the ordering of the two: the attack it scores far higher causes
+far less harm, and the reversal holds under every way we define harm. The cause is that a refusal
 judge credits an attack for every answer the model would have produced anyway; a
 cold control, the same request with no conversation, separates the two. The harm
 judges are unreliable too: two purpose-built safety classifiers disagree on almost
-half of the hardest cases, and a fully adaptive attacker exploits the gap,
-reaching complete reported success while one judge sees a few percent harm and the
-other a majority. A safety judge needs a validity check, a no-attack baseline and
+half of the hardest cases. As a separate stress test we add a third, fully adaptive
+attack, which exploits the gap directly, reaching complete reported success while
+one judge sees a few percent harm and the other a majority. A safety judge needs a validity check, a no-attack baseline and
 independent harm labeling, before its numbers can be trusted. We release all data
 and code.
 \end{abstract}
@@ -73,16 +73,27 @@ anyway has not been attacked successfully; it has merely been asked. The refusal
 judge cannot see this, because it never observes what the model would have done
 without the conversation. We supply that missing observation with a \emph{cold}
 control, the same final request issued with no history, and an independent harm
-judge over every response (Figure~\ref{fig:method}). Together they decompose
-reported success into three parts,
+judge over every response (Figure~\ref{fig:method}).
+
+This gives our research question a precise form: \emph{does refusal-based ASR
+measure the harm an attack induces, or does it also absorb vulnerability the model
+already had?} Write $r^{\mathrm{cold}}_i\in\{0,1\}$ for whether the model refuses
+scenario $i$'s final request issued alone, $r^{\mathrm{ctx}}_i$ for whether it
+refuses that same request after the attack conversation, and $h_i\in\{0,1\}$ for
+whether an independent judge labels the in-context response harmful. Refusal-based
+scoring reports $S_i = 1-r^{\mathrm{ctx}}_i$, and that quantity decomposes exactly:
 \begin{equation}
-\text{reported} = \underbrace{\text{no harm}}_{\text{harmless}}
- + \underbrace{\text{pre-existing}}_{\text{harmful cold}}
- + \underbrace{\attr}_{\text{attack-caused}},
+\underbrace{1-r^{\mathrm{ctx}}_i}_{\text{reported success } S_i}
+= \underbrace{(1-r^{\mathrm{ctx}}_i)(1-h_i)}_{\text{no harm } N_i}
++ \underbrace{(1-r^{\mathrm{ctx}}_i)\,h_i\,(1-r^{\mathrm{cold}}_i)}_{\text{pre-existing } P_i}
++ \underbrace{(1-r^{\mathrm{ctx}}_i)\,h_i\,r^{\mathrm{cold}}_i}_{\text{attributable } A_i}.
 \label{eq:decomp}
 \end{equation}
-where a scenario is attack-attributable only if the model refused it cold, did not
-refuse it in context, and the response was judged harmful.
+The three terms are answers carrying no harm, harm the model would have produced
+without any attack, and harm the attack actually caused. Reported ASR is the mean
+of $S_i$ and attributable harm the mean of $A_i$. An attack deserves credit only
+for $A_i$, yet the reported metric returns their sum, so a model that would have
+answered anyway inflates the score of whichever attack happens to ask it.
 
 \begin{figure}[t]
 \centering
@@ -149,20 +160,30 @@ harm label. Either exposes the inversion at one extra generation per scenario
 \end{enumerate}
 
 \section{Setup}
+\label{sec:setup}
 
 Five instruction-tuned models across three families (Llama-3.2-3B, Llama-3.1-8B,
 Qwen2.5-3B, Qwen2.5-7B, Mistral-7B-Instruct-v0.3), four precisions (FP16, NF4, AWQ,
 GPTQ), greedy decoding throughout. \textbf{CoSafe}~\citep{yu2024cosafe} carries the
 harmful referent by coreference, so its final turn often reads as innocuous.
 \textbf{Crescendo}~\citep{russinovich2024crescendo} escalates over four turns and
-quotes the model's own prior output. \textbf{PAIR}~\citep{chao2023jailbreaking}, on
-Qwen2.5-3B, uses a fixed attacker model that rewrites the request from the target's
-replies. Harm is labelled by Llama Guard 3 8B~\citep{inan2023llamaguard} over all
+quotes the model's own prior output. These two are the primary comparison, and every
+matched-configuration result below is a CoSafe-versus-Crescendo claim. Separately,
+as an adaptive stress test on Qwen2.5-3B alone, we run
+\textbf{PAIR}~\citep{chao2023jailbreaking}, in which a fixed attacker model
+rewrites the request from the target's replies. PAIR is not part of the paired
+comparison; we use it in Section~\ref{sec:judge} to push the metric and the judges
+to their limit. Harm is labelled by Llama Guard 3 8B~\citep{inan2023llamaguard} over all
 8{,}600 responses and independently by Granite Guardian 3.1
 2B~\citep{padhi2024granite}, an architecture that appears nowhere among the systems
-under test. Comparisons are paired within scenario; the central effect is reported
-as a $10{,}000$-sample bootstrap interval, since it rests on fourteen matched
-configurations where a rank test resolves coarsely. Per-cell $n$ is 100 or 200
+under test. Comparisons are paired within scenario. The central effect is reported as a
+$10{,}000$-sample bootstrap interval, since it rests on fourteen matched
+configurations where a rank test resolves coarsely. The bootstrap resamples
+\emph{configurations}, not individual responses: responses within a scenario, and
+scenarios within a configuration, are not independent, so the configuration is the
+only unit we are willing to treat as exchangeable. The interval therefore reflects
+variation across model-precision cells rather than across responses, which is the
+conservative choice at this sample size. Per-cell $n$ is 100 or 200
 (Table~\ref{tab:decomp}); several decompositions are computed from the same
 responses, so the individual $p$-values are not corrected for multiplicity and we
 rely on the bootstrap intervals and the consistency of the sign across
@@ -323,6 +344,48 @@ reverses which of two attacks is more dangerous, and the harm judges meant to
 check it disagree on nearly half of the hardest cases. A no-attack baseline and an
 independent harm label, both cheap, restore a measurement that means what it says.
 Before we trust a safety judge, we should audit it.
+
+\appendix
+\section{Reproducibility details}
+\label{app:repro}
+
+\textbf{Checkpoints.} \texttt{meta-llama/Llama-3.2-3B-Instruct},
+\texttt{meta-llama/Meta-Llama-3.1-8B-Instruct},
+\texttt{Qwen/Qwen2.5-3B-Instruct}, \texttt{Qwen/Qwen2.5-7B-Instruct},
+\texttt{mistralai/Mistral-7B-Instruct-v0.3}. Quantized variants are the published
+4-bit checkpoints where they exist:
+\texttt{hugging-quants/Meta-Llama-3.1-8B-Instruct-AWQ-INT4},
+\texttt{hugging-quants/Meta-Llama-3.1-8B-Instruct-GPTQ-INT4},
+\texttt{Qwen/Qwen2.5-7B-Instruct-AWQ},
+\texttt{Qwen/Qwen2.5-7B-Instruct-GPTQ-Int4},
+\texttt{solidrust/Mistral-7B-Instruct-v0.3-AWQ}. NF4 is quantized at load with
+bitsandbytes (double quantization, \texttt{float16} compute dtype).
+
+\textbf{Decoding.} Greedy throughout (\texttt{do\_sample=False}), 48 new tokens for
+multi-turn and single-turn replies, so any difference between arms is attributable
+to weights rather than sampling. Generation for the quantized arms and the matched
+FP16 replication ran on the same CUDA hardware.
+
+\textbf{Judges.} Llama Guard 3 8B is applied to the full conversation plus the
+assistant reply through its own chat template; a response counts as harmful when
+the verdict string begins with \texttt{unsafe}. Granite Guardian 3.1 2B is applied
+with \texttt{guardian\_config=\{"risk\_name": "harm"\}} and counted harmful when the
+verdict begins with \texttt{yes}. Both judges are run once per response, batched
+with left padding, before any analysis, and neither sees the other's label. No
+score threshold is tuned: both are used at their default decision rule.
+
+\textbf{Prompts and attacks.} Harmful goals are the first $n$ AdvBench behaviours;
+CoSafe scenarios are converted from the published dataset. Crescendo runs four
+turns and quotes the model's own second-turn output in its third. PAIR runs up to
+four rewrite rounds with a Mistral-7B attacker held fixed across precisions and
+loaded in 4-bit, with a refusal check on the attacker's own output so that an
+attacker refusal is never scored as an attack prompt.
+
+\textbf{Statistics.} McNemar's exact test for paired binary refusal, Wilcoxon
+signed-rank for attack-level comparisons, and a $10{,}000$-sample percentile
+bootstrap resampled over configurations (Section~\ref{sec:setup}). Several
+decompositions are computed from the same responses and we do not correct the
+individual $p$-values for multiplicity.
 
 {\small
 \nocite{*}   % include the full reference set (references do not count to the page limit)
